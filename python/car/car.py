@@ -13,6 +13,17 @@ class Car:
         self.lSpeed = 0
         self.gamma = 0.5
 
+    def action(self, angle, state) :
+        print(angle, state)
+        if state == "FORWARD" :
+            self.forward(angle)
+        elif state == "ROTATE" :
+            self.rotate(angle)
+        elif state == "STOP " :
+            self.stop()
+        elif state == "BACKWARD" :
+            pass
+
     def forward(self, angle):
         self.accum += angle
         self.rSpeed = self.BASE_SPEED - self.p * angle - self.i * self.accum - self.d * (angle-self.lastAngle)
@@ -34,7 +45,7 @@ class Car:
         if angle > 0:
             self.rSpeed *= -1
         elif angle < 0:
-            self.lSPeed *= -1
+            self.lSpeed *= -1
         else:
             self.rSpeed, self.lSpeed = self.BASE_SPEED, self.BASE_SPEED
         self.toArduino()

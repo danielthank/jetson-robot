@@ -1,8 +1,8 @@
 import cv2
-import weave
 import numpy as np
 import math
 from scipy import weave 
+
 class BlackLaneDetector :
     def __init__(self):
         self.angle = 0;
@@ -37,6 +37,8 @@ class BlackLaneDetector :
             cv2.imshow("adapt", adapt)
             cv2.imshow("Zhang", zhang)
             cv2.imshow("result", result)
+
+        return self.angle, self.state
 
     def ZhangAlgorithm(self, src, iteration):
         dst = src.copy()/255

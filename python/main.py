@@ -65,7 +65,8 @@ vs = None
 if sys.argv[1]== 'c':
     dev = int(sys.argv[2])
     vs = VideoStream(src=dev).start()
-# detector = BlackLaneDetector()
+
+detector = BlackLaneDetector()
 
 while True:
     ttyraw()
@@ -81,10 +82,10 @@ while True:
         ir = arduino.readline()
         # print(ir[:-1])
         frame = vs.read()
-        cv2.imshow('test', frame)
-        if cv2.waitKey(1)  == ord('q'):
+        angle, state = detector.detect(frame, True, False)
+        car.action(angle, state)
+        if cv2.waitKey(100)  == ord('q'):
             break
-        # detector.detect(frame, True)
 
 cap.release()
 cv2.destroyAllWindows()
