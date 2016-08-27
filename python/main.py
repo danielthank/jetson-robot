@@ -16,7 +16,7 @@ arduino.start()
 
 fd = sys.stdin.fileno()
 old = termios.tcgetattr(fd)
-tty.setraw(fd)
+# tty.setraw(fd)
 
 
 def terminate():
@@ -59,10 +59,10 @@ if sys.argv[1]== 'c':
 	dev = int(sys.argv[2])
 	cap = cv2.VideoCapture(dev)
 
-# detector = BlackLaneDetector()
+detector = BlackLaneDetector()
 
 while True:
-    while sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
+    while sys.stdin in select.select([sys.stdin], [], [], 1)[0]:
         ch = sys.stdin.read(1)
         if ch == '\x1b':
             ch = ch + sys.stdin.read(2)
@@ -71,12 +71,10 @@ while True:
         arduino.write('i\n')
         ir = arduino.read(3)
         print(ir[:2])
-        """
         ret, frame = cap.read()
-        # detector.detect(frame, True)
+        detector.detect(frame, True, True)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-        """
 
 cap.release()
 cv2.destroyAllWindows()

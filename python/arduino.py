@@ -9,7 +9,7 @@ import numpy as np
 class Arduino(Thread):
     def __init__(self):
         Thread.__init__(self)
-        candidates = ['/dev/ttyACM0', '/dev/ttyACM1', '/dev/cu.usbmodem14141']
+        candidates = ['/dev/ttyACM0', '/dev/ttyACM1', '/dev/cu.usbmodem14231']
         for candidate in candidates:
             try:
                 self.dev = serial.Serial(candidate)
