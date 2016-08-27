@@ -11,9 +11,13 @@ class Arduino(Thread):
         Thread.__init__(self)
         candidates = ['/dev/ttyACM0', '/dev/ttyACM1', '/dev/cu.usbmodem14141']
         for candidate in candidates:
-            if os.file.isfile(candidate):
+            try:
                 self.dev = serial.Serial(candidate)
-
+            except:
+                pass
+            else:
+                break
+       #  print(self.dev)
         self.q = Queue(maxsize=10)
         # self.dev.setDTR(False)
         sleep(3)
@@ -24,6 +28,9 @@ class Arduino(Thread):
     def write(self, command):
         # print(command)
         self.dev.write(command)
+
+    def read(self, cnt):
+        return self.dev.read(cnt)
 
     def push(self, command):
         self.q.put(command)
@@ -41,4 +48,3 @@ class Arduino(Thread):
             if command == 'q\n':
                 break
             self.write(command)
-            sleep(0.1)

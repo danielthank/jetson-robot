@@ -10,22 +10,19 @@ from car.car import Car
 from car.blacklane import BlackLaneDetector
 from arduino import Arduino
 
-"""
+arduino = Arduino()
+car = Car(arduino)
+arduino.start()
+
 fd = sys.stdin.fileno()
 old = termios.tcgetattr(fd)
 tty.setraw(fd)
 
-arduino = Arduino()
-car = Car(arduino)
-arduino.start()
-"""
 
 def terminate():
-    """
     arduino.terminate()
     arduino.join()
     termios.tcsetattr(fd, termios.TCSADRAIN, old)
-    """
     sys.exit()
 
 def Usage():
@@ -38,16 +35,16 @@ def Usage():
 def key(com):
     # up
     if com == '\x1b[A':
-        car.setSpeed(20, 20)
+        car.setSpeed(40, 40)
     # down
     elif com == '\x1b[B':
-        car.setSpeed(-20, -20)
+        car.setSpeed(-40, -40)
     # right
     elif com == '\x1b[C':
-        car.setSpeed(-20, 20)
+        car.setSpeed(-40, 40)
     # left
     elif com == '\x1b[D':
-        car.setSpeed(20, -20)
+        car.setSpeed(40, -40)
         # print("left")
     elif com == ' ':
         car.stop()
@@ -62,19 +59,24 @@ if sys.argv[1]== 'c':
 	dev = int(sys.argv[2])
 	cap = cv2.VideoCapture(dev)
 
-detector = BlackLaneDetector()
+# detector = BlackLaneDetector()
 
 while True:
     while sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
         ch = sys.stdin.read(1)
         if ch == '\x1b':
             ch = ch + sys.stdin.read(2)
-        # key(ch)
+        key(ch)
     else:
+        arduino.write('i\n')
+        ir = arduino.read(3)
+        print(ir[:2])
+        """
         ret, frame = cap.read()
-        detector.detect(frame, True)
+        # detector.detect(frame, True)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+        """
 
 cap.release()
 cv2.destroyAllWindows()
