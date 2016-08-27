@@ -69,12 +69,8 @@ while True:
         key(ch)
     else:
         arduino.write('i\n')
-<<<<<<< Updated upstream
         ir = arduino.read(3)
         print(ir[:2])
-=======
-        ir = arduino.read(2)
->>>>>>> Stashed changes
         """
         ret, frame = cap.read()
         # detector.detect(frame, True)

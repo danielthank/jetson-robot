@@ -1,9 +1,9 @@
 class Car:
     def __init__(self, arduino):
         self.ROTATE_SPEED = 10
-		self.BASE_SPEED = 20
-		self.MAX_SPEED = 90
-		self.arduino = arduino
+        self.BASE_SPEED = 20
+	self.MAX_SPEED = 90
+        self.arduino = arduino
         self.lastAngle = 0
         self.p = 0.5
         self.i = 0
@@ -45,14 +45,14 @@ class Car:
         self.toArduino()
 
     def toArduino(self):
-        if self.rSpeed < -MAX_SPEED:
-            self.rSpeed = -MAX_SPEED
-        elif self.rSpeed > MAX_SPEED:
-            self.rSpeed = MAX_SPEED
-        if self.lSpeed < -MAX_SPEED:
-            self.lSpeed = -MAX_SPEED
-        elif self.lSpeed > MAX_SPEED:
-            self.lSpeed = MAX_SPEED
+        if self.rSpeed < -self.MAX_SPEED:
+            self.rSpeed = -self.MAX_SPEED
+        elif self.rSpeed > self.MAX_SPEED:
+            self.rSpeed = self.MAX_SPEED
+        if self.lSpeed < -self.MAX_SPEED:
+            self.lSpeed = -self.MAX_SPEED
+        elif self.lSpeed > self.MAX_SPEED:
+            self.lSpeed = sellf.MAX_SPEED
         command = 's ' + str(int(self.rSpeed)) + ',' + str(int(self.lSpeed)) + '\n'
         if self.arduino.available() == True:
             self.arduino.push(command)
