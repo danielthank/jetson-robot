@@ -1,8 +1,11 @@
 #include <Arduino.h>
 #include <Servo.h>
 
-#define LEFT  5
-#define RIGHT  3
+#define RIGHT_SERVO  3
+#define LEFT_SERVO  5
+
+#define RIGHT_IR 4
+#define LEFT_IR 2
 
 Servo lServo;
 Servo rServo;
@@ -11,12 +14,16 @@ unsigned long timePass;
 char serialData[32];
 int cnt=0;
 int rSpeed, lSpeed, rNow, lNow;
+int rIR, lIR;
 
 void setup() {
-    pinMode(LEFT, OUTPUT);
-    pinMode(RIGHT, OUTPUT);
-    lServo.attach(LEFT);
-    rServo.attach(RIGHT);
+    pinMode(RIGHT_SERVO, OUTPUT);
+    pinMode(LEFT_SERVO, OUTPUT);
+
+    pinMode(RIGHT_IR, INPUT);
+    pinMode(LEFT_IR, INPUT);
+    rServo.attach(RIGHT_SERVO);
+    lServo.attach(LEFT_SERVO);
     Serial.begin(9600);
 }
 
@@ -66,30 +73,36 @@ void loop() {
     if (Serial.available() > 0) {
         int length = Serial.readBytesUntil('\n', serialData, 31);
         serialData[length] = '\0';
-        Serial.println(serialData);
-        Serial.println(cnt);
-        cnt++;
         switch(serialData[0]){
-            case 's' :
-                int speed[2];
-                timePass = millis() - timeStart;
-                timeStart = millis();
-                //timeDelay=timePass*0.75+timeDelay*0.15;
-                if(timePass > 100) timePass=100;
-                //Serial.print("time : ");
-                //Serial.println(timePass);
-                if(parseCommand(serialData, speed, 2)){
-                    lSpeed = speed[0];
-                    rSpeed = speed[1];
-                    delay(timePass/2 + timePass/4);
-                    //setSpeed(90,90);
-                }
-                break;
+        case 's':
+            int speed[2];
+            timePass = millis() - timeStart;
+            timeStart = millis();
+            //timeDelay=timePass*0.75+timeDelay*0.15;
+            if(timePass > 100) timePass=100;
+            //Serial.print("time : ");
+            //Serial.println(timePass);
+            if(parseCommand(serialData, speed, 2)){
+                if (speed[1] > 0) speed[1] *= 0.8;
+                if (speed[0] < 0) speed[0] *= 0.8;
+                rSpeed = speed[0];
+                lSpeed = speed[1];
+                //delay(timePass/2 + timePass/4);
+                //setSpeed(90,90);
+            }
+            break;
+        case 'i':
+            rIR = digitalRead(RIGHT_IR);
+            lIR = digitalRead(LEFT_IR);
+            Serial.println(String(rIR) + String(lIR));
+            break;
         }
         //Serial.println("Finish");
     }
-    lServo.write(90 - lNow);
-    rServo.write(rNow + 90);
-    lNow += (lSpeed - lNow) * 0.1;
-    rNow += (rSpeed - rNow) * 0.1;
+    if (cnt++ % 1000 == 0) {
+        rServo.write(rNow + 90);
+        lServo.write(90 - lNow);
+        lNow += (lSpeed - lNow) * 0.1;
+        rNow += (rSpeed - rNow) * 0.1;
+    }
 }
