@@ -23,10 +23,9 @@ class Arduino():
         sleep(3)
         self.dev.flushInput()
         # self.sleeping = False
-        print("Arduino ready", end='')
+        print("[Arduino] ready")
 
     def write(self, command):
-        print(command)
         self.dev.write(command)
 
     def read(self, cnt):
@@ -37,25 +36,10 @@ class Arduino():
 
     def request(self, command):
         self.write(command)
-        return self.readline()
-
-    """
-    def push(self, command):
-        self.q.put(command)
-
-    def available(self):
-        return self.q.qsize() < 5
-    """
+        ret = self.readline()
+        print('[Arduino] ' +  command[:-1] + ' ' + ret[:-1])
+        return ret
 
     def terminate(self):
         self.write('s 0,0\n')
-        self.write('q\n')
-
-    """
-    def run(self):
-        while True:
-            command = self.q.get()
-            if command == 'q\n':
-                break
-            self.write(command)
-    """
+        # self.write('q\n')

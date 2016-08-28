@@ -5,28 +5,21 @@ import tty
 import sys
 import select
 import termios
+import os
 from time import sleep
 from imutils.video import VideoStream
 from car.car import Car
 from car.blacklane import BlackLaneDetector
 from arduino import Arduino
-from contextlib import contextmanager
 
-@contextmanager
-def redirect_stdout(new_stdout):
-    save_stdout = sys.stdout
-    sys.stdout = new_stdout
-    try:
-        yield None
-    finally:
-        sys.stdout = save_stdout
+null_dev = os.open('/dev/null', os.O_WRONLY)
+os.dup2(null_dev, 2)
 
 fd = sys.stdin.fileno()
 old = termios.tcgetattr(fd)
 
 arduino = Arduino()
 car = Car(arduino)
-# arduino.start()
 
 def ttyraw():
     tty.setraw(fd)
@@ -42,25 +35,21 @@ def Usage():
     terminate()
 
 def key(com):
-    # up
     if com == '\x1b[A':
-        car.setSpeed(40, 40)
-    # down
+        car.action("FORWARD")
     elif com == '\x1b[B':
-        car.setSpeed(-40, -40)
-    # right
+        car.action("BACKWARD")
     elif com == '\x1b[C':
-        car.setSpeed(-40, 40)
-    # left
+        car.action("RIGHT")
     elif com == '\x1b[D':
-        car.setSpeed(40, -40)
+        car.action("LEFT")
     elif com == ' ':
         car.stop()
     elif com == 'q':
         ttydefault()
+        car.stop()
         sys.exit()
-    elif com == 'c':
-        tty.setcbreak(sys.stdin.fileno())
+
 """
 if len(sys.argv) != 3:
     Usage()
@@ -74,26 +63,24 @@ else:
 
 detector = BlackLaneDetector()
 
-while True:
-    if manual:
+if manual:
+    while True:
         ttyraw()
         if sys.stdin in select.select([sys.stdin], [], [], 0.1)[0]:
             ch = sys.stdin.read(1)
             if ch == '\x1b':
                 ch = ch + sys.stdin.read(2)
-            key(ch)
             ttydefault()
+            key(ch)
         else:
             ttydefault()
             ir = arduino.request('i\n')
-            with redirect_stdout(sys.stderr):
-                frame = vs.read()
+            frame = vs.read()
             # angle, state = detector.detect(frame, True, False)
             # ret = car.action(angle, state)
-            # print(ret, end='')
-    else:
+else:
+    while True:
         ir = arduino.request('i\n')
-        # print(ir[:-1])
         frame = vs.read()
         imshow('test', frame)
         if cv2.waitKey(100)  == ord('q'):
@@ -103,13 +90,3 @@ while True:
 ttydefault()
 cap.release()
 cv2.destroyAllWindows()
-
-"""
-elif sys.argv[1] == 'v':
-        cap = cv2.VideoCapture(sys.argv[2])
-elif sys.argv[1] == 'p':
-    print 'Not yet implement'
-    terminate()
-else:
-        Usage()
-"""
