@@ -32,6 +32,9 @@ class Arduino(Thread):
     def read(self, cnt):
         return self.dev.read(cnt)
 
+    def readline(self):
+        return self.dev.readline()
+
     def push(self, command):
         self.q.put(command)
 
