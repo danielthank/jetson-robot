@@ -11,6 +11,7 @@ from imutils.video import VideoStream
 from car.car import Car
 from car.blacklane import BlackLaneDetector
 from arduino import Arduino
+from model import DeepModel
 
 null_dev = os.open('/dev/null', os.O_WRONLY)
 os.dup2(null_dev, 2)
@@ -55,13 +56,15 @@ if len(sys.argv) != 3:
     Usage()
 """
 
-vs = VideoStream(src=0).start()
 if sys.argv[1] == '1':
     manual = True
 else:
     manual = False
 
 detector = BlackLaneDetector()
+model = DeepModel()
+print(model)
+vs = VideoStream(src=0).start()
 
 if manual:
     while True:
