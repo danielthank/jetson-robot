@@ -11,9 +11,14 @@ class BlackLaneDetector :
         
         """
         self.PI = 3.14159;
+        
         self.houghVote = 50;
         self.houghMinLen = 40;
         self.houghMaxGap = 10;
+
+        self.c = 65;
+        self.range = 65;
+
 
     def detect(self, frame, showImg, showInfo) :
         frame = cv2.resize(frame, (640, 480))
@@ -21,22 +26,32 @@ class BlackLaneDetector :
         #blur = cv2.blur(frame, (3 , 3))
         gray = cv2.cvtColor(roi , cv2.COLOR_BGR2GRAY)
         kernel = np.ones((3,3), np.uint8)
-        adapt = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 65, 65)
+        adapt = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, self.range, self.c)
         adapt = cv2.dilate(adapt, kernel, iterations = 3)
-
+        
+        start = timeit.default_timer()
         zhang = self.ZhangAlgorithm(adapt, 50)
         zhang = cv2.dilate(zhang, kernel, iterations = 1)
-
+        print "Zhang time : ", timeit.default_timer() - start
+        
         lines=cv2.HoughLinesP(zhang, 1, self.PI/180, self.houghVote, self.houghMinLen, self.houghMaxGap)
-
+        start = timeit.default_timer()
         result = self.findDirection(roi.shape, lines, showInfo)
-
+        print "findDirection time : ",timeit.default_timer() - start
         if showImg:
+            size = roi.shape
+            img_new = np.zeros((size[0]*2, size[1]*2, size[2]), np.uint8)
+            img_new[0 : size[0], 0 : size[1]] = roi
+            img_new[0 : size[0], size[1] : size[1] *2] = cv2.cvtColor(adapt, cv2.COLOR_GRAY2BGR)
+            img_new[size[0] : size[0] *2, 0 : size[1]] = cv2.cvtColor(zhang, cv2.COLOR_GRAY2BGR)
+            img_new[size[0] : size[0] *2, size[1] : size[1] *2] = result
+            cv2.imshow("monitor", img_new)
+            """
             cv2.imshow("original", frame)
             cv2.imshow("adapt", adapt)
             cv2.imshow("Zhang", zhang)
             cv2.imshow("result", result)
-    
+            """
     def ZhangAlgorithm(self, src, iteration):
         dst = src.copy()/255
         prev = np.zeros(src.shape,np.uint8)
@@ -55,25 +70,27 @@ class BlackLaneDetector :
         expr = """
         for(int i=1;i < NI[0]-1;++i){
             for(int j=1;j < NI[1]-1;++j){
-                int p2 = I2(i-1,j);
-                int p3 = I2(i-1,j+1);
-                int p4 = I2(i,j+1);
-                int p5 = I2(i+1,j+1);
-                int p6 = I2(i+1,j);
-                int p7 = I2(i+1,j-1);
-                int p8 = I2(i,j-1);
-                int p9 = I2(i-1,j-1);
+                if( I2(i,j) != 0){
+                    int p2 = I2(i-1,j);
+                    int p3 = I2(i-1,j+1);
+                    int p4 = I2(i,j+1);
+                    int p5 = I2(i+1,j+1);
+                    int p6 = I2(i+1,j);
+                    int p7 = I2(i+1,j-1);
+                    int p8 = I2(i,j-1);
+                    int p9 = I2(i-1,j-1);
 
-                int A = (p2 == 0 and p3 == 1) + (p3 == 0 and p4 == 1) +
-                        (p4 == 0 and p5 == 1) + (p5 == 0 and p6 == 1) +
-                        (p6 == 0 and p7 == 1) + (p7 == 0 and p8 == 1) +
-                        (p8 == 0 and p9 == 1) + (p9 == 0 and p2 == 1);
-                int B = p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9;
-                int m1 = mode == 0 ? (p2 * p4 * p6) : (p2 * p4 * p8);
-                int m2 = mode == 0 ? (p4 * p6 * p8) : (p2 * p6 * p8);
+                    int A = (p2 == 0 and p3 == 1) + (p3 == 0 and p4 == 1) +
+                            (p4 == 0 and p5 == 1) + (p5 == 0 and p6 == 1) +
+                            (p6 == 0 and p7 == 1) + (p7 == 0 and p8 == 1) +
+                            (p8 == 0 and p9 == 1) + (p9 == 0 and p2 == 1);
+                    int B = p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9;
+                    int m1 = mode == 0 ? (p2 * p4 * p6) : (p2 * p4 * p8);
+                    int m2 = mode == 0 ? (p4 * p6 * p8) : (p2 * p6 * p8);
 
-                if (A == 1 and B >= 2 and B <= 6 and m1 == 0 and m2 == 0) 
-                    M2(i,j) = 1;
+                    if (A == 1 and B >= 2 and B <= 6 and m1 == 0 and m2 == 0) 
+                        M2(i,j) = 1;
+                }
             }
         }
         """
@@ -272,12 +289,14 @@ class BlackLaneDetector :
 
 import sys
 import time
-def Usage() :
-    print "Usage : python blackLane.py <cv> <source>"
-    print "    c : read data from camera"
-    print "    v : read data from video" 
-    sys.exit()
+import timeit
 if __name__ == "__main__" :
+    def Usage() :
+        print "Usage : python blackLane.py <cv> <source>"
+        print "    c : read data from camera"
+        print "    v : read data from video" 
+        sys.exit()
+
     print "Testing the function of class BlackLane"
     if len(sys.argv) != 3 :
         Usage()
@@ -293,12 +312,17 @@ if __name__ == "__main__" :
     detector = BlackLaneDetector()
     
     key = None
+    accum = 0
+    count = 0
     while key != ord('q') :
         while cap.isOpened() :
             ret, frame = cap.read()
             if ret :
-                detector.detect(frame, True, True)
-                key = cv2.waitKey(100) & 0xFF 
+                t_start = timeit.default_timer()   
+                detector.detect(frame, True, False)
+                accum += timeit.default_timer() - t_start  
+                count += 1
+                key = cv2.waitKey(1) & 0xFF 
                 if key == ord('q') :
                     break
             else :
@@ -307,5 +331,6 @@ if __name__ == "__main__" :
                 print "press \"g\" to continue"
                 while cv2.waitKey(1) & 0xFF != ord('g') :
                     pass
+        print "average time : ",accum/count
         if sys.argv[1] == 'v' and key != ord('q') :
             cap.open(sys.argv[2])
