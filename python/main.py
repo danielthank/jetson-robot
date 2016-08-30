@@ -6,90 +6,98 @@ import sys
 import select
 import termios
 import os
+
 from time import sleep
 from imutils.video import VideoStream
+
 from car.car import Car
-from car.blacklane import BlackLaneDetector
 from arduino import Arduino
-from model import DeepModel
 
-null_dev = os.open('/dev/null', os.O_WRONLY)
-os.dup2(null_dev, 2)
+class Main:
+    def __init__(self):
+        self.fd = sys.stdin.fileno()
+        self.old = termios.tcgetattr(self.fd)
+        self.arduino = Arduino()
+        self.car = Car(self.arduino)
+        self.vs = VideoStream(src=0).start()
 
-fd = sys.stdin.fileno()
-old = termios.tcgetattr(fd)
+    def __enter__(self):
+        return self
 
-arduino = Arduino()
-car = Car(arduino)
+    def __exit__(self, exc_type, exc_value, traceback):
+        cv2.destroyAllWindows()
+        self.ttydefault()
+        self.car.stop()
+        self.car.model.save()
 
-def ttyraw():
-    tty.setraw(fd)
 
-def ttydefault():
-    termios.tcsetattr(fd, termios.TCSADRAIN, old)
+    def ttyraw(self):
+        tty.setraw(self.fd)
 
-def Usage():
-    print('Usage : BlackLaneDetector <cvp> <source>')
-    print('    c : read data from camera')
-    print('    v : read data from video')
-    print('    p : read data from picture')
-    terminate()
+    def ttydefault(self):
+        termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old)
 
-def key(com):
-    if com == '\x1b[A':
-        car.action("FORWARD")
-    elif com == '\x1b[B':
-        car.action("BACKWARD")
-    elif com == '\x1b[C':
-        car.action("RIGHT")
-    elif com == '\x1b[D':
-        car.action("LEFT")
-    elif com == ' ':
-        car.stop()
-    elif com == 'q':
-        ttydefault()
-        car.stop()
+    def Usage(self):
+        print('Usage : BlackLaneDetector <cvp> <source>')
+        print('    c : read data from camera')
+        print('    v : read data from video')
+        print('    p : read data from picture')
         sys.exit()
+    
+    def get_img(self):
+        img = self.vs.read()
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        img = cv2.resize(img, (32, 32))
+        return img
+        
+def key2action(key):
+    if key  == '\x1b[A':
+        return 0
+    elif key == '\x1b[B':
+        return 1
+    elif key == '\x1b[C':
+        return 2
+    elif key == '\x1b[D':
+        return 3
+    elif key == ' ':
+        return 4
+    else:
+        return 5
 
-"""
-if len(sys.argv) != 3:
-    Usage()
-"""
+def redirect_stderr(self,flag):
+    if flag:
+        null_dev = os.open('/dev/null', os.O_WRONLY)
+        os.dup2(null_dev, 2)
 
-if sys.argv[1] == '1':
-    manual = True
-else:
-    manual = False
-
-detector = BlackLaneDetector()
-model = DeepModel()
-print(model)
-vs = VideoStream(src=0).start()
-
-if manual:
+with Main() as main:
+    main.ttyraw()
+    ir = main.arduino.request('i\n')
+    img = main.get_img()
     while True:
-        ttyraw()
-        if sys.stdin in select.select([sys.stdin], [], [], 0.1)[0]:
+        if sys.stdin in select.select([sys.stdin], [], [], 1)[0]:
             ch = sys.stdin.read(1)
-            if ch == '\x1b':
-                ch = ch + sys.stdin.read(2)
-            ttydefault()
-            key(ch)
+            if ch == '\x1b' or ch == ' ':
+                if ch == '\x1b':
+                    ch = ch + sys.stdin.read(2)
+                idx = key2action(ch)
+                main.car.action(idx)
+                main.ttydefault()
+                print('[Loss] ' + str(main.car.model.train(img, ir, idx)))
+                main.ttyraw()
+            elif ch == 'q':
+                sys.exit()
         else:
-            ttydefault()
-            ir = arduino.request('i\n')
-            frame = vs.read()
-            # angle, state = detector.detect(frame, True, False)
-            # ret = car.action(angle, state)
-else:
-    while True:
-        ir = arduino.request('i\n')
-        frame = vs.read()
-        imshow('test', frame)
-        if cv2.waitKey(100)  == ord('q'):
-            break
+            img = main.get_img()
+            ir = main.arduino.request('i\n')
+            main.ttydefault()
+            prob = main.car.model.predict(img, ir)[0]
+            print('[Predict] ' + str(prob))
+            main.car.action(np.argmax(prob))
+            main.ttyraw()
+            """
+            cv2.imshow('test', img)
+            if cv2.waitKey(100)  == ord('q'):
+                break
+            """
 
 
-ttydefault()
-cap.release()
-cv2.destroyAllWindows()

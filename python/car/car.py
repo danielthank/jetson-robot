@@ -1,8 +1,11 @@
+from blacklane import BlackLaneDetector
+from model import DeepModel
+
 class Car:
     def __init__(self, arduino):
         self.ROTATE_SPEED = 20
         self.BASE_SPEED = 20
-	self.MAX_SPEED = 90
+        self.MAX_SPEED = 90
         self.arduino = arduino
         self.lastAngle = 0
         self.p = 0.5
@@ -12,18 +15,14 @@ class Car:
         self.rSpeed = 0
         self.lSpeed = 0
         self.gamma = 0.5
+        self.model = DeepModel()
+        self.detector = BlackLaneDetector()
 
-    def action(self, state) :
-        if state == "FORWARD":
-            return self.forward()
-        elif state == "BACKWARD":
-            return self.backward()
-        elif state == "LEFT":
-            return self.left()
-        elif state == "RIGHT" :
-            return self.right()
-        elif state == "STOP" :
-            return self.stop()
+    def action(self, idx) :
+        funcs = [self.forward, self.backward, self.right, self.left, self.stop]
+        if idx < len(funcs):
+            return funcs[idx]()
+        return 'fail'
 
     def setSpeed(self, r, l):
         self.rSpeed = r

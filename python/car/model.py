@@ -1,19 +1,19 @@
 from __future__ import print_function
-from keras.models import model_from_json, Model
+from keras.models import load_model, Model
 from keras.layers import Input, Dense, Dropout, Activation, Flatten, merge
 from keras.layers import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD
 from keras.utils import np_utils
-from keras.callbacks import ModelCheckpoint
 import numpy as np
 import os
+import cv2
 
-MODEL_PATH = "model.json"
+MODEL_PATH = "car/model.h5"
 
 class DeepModel:
     def __init__(self):
         if not os.path.isfile(MODEL_PATH):
-            camera_input = Input(shape=(1, 32, 32), dtype='uint8', name='camera_input')
+            camera_input = Input(shape=(1, 32, 32), dtype='float32', name='camera_input')
 
             conv1 = Convolution2D(64, 3, 3)(camera_input)
             conv1 = Activation('relu')(conv1)
@@ -43,17 +43,46 @@ class DeepModel:
             ir_input = Input(shape=(2,), dtype='uint8', name='ir_input')
 
             x = merge([conv6, ir_input], mode='concat')
-            x = Dense(1024, activation='relu')(x)
+            x = Dense(500, activation='relu')(x)
             x = Dropout(0.5)(x)
             prob = Dense(5, activation='softmax')(x)
             model = Model(input=[camera_input, ir_input], output=[prob])
-            open(MODEL_PATH, 'w').write(model.to_json())
+            model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
+            model._make_train_function()
+            model._make_predict_function()
+            model.save(MODEL_PATH)
         else:
-            model = model_from_json(open(MODEL_PATH, "r").read())
+            model = load_model(MODEL_PATH)
 
-        print(model.summary())
+        self.model = model
+        print('[Model] ready')
+    
+    def pre_data(self, img, ir):
+        img = np.reshape(img, (1, 1, 32, 32)).astype(np.float32)
+        img = img/255
+        ir_output = np.zeros((1, 2), dtype=np.uint8)
+        ir_output[0][0] = ir[0] == '1'
+        ir_output[0][1] = ir[1] == '1'
+        return img, ir_output
 
+    
+    def train(self, img, ir, command):
+        img, ir = self.pre_data(img, ir)
+        y = np.zeros((1, 5))
+        y[0][command] = 1.
+        return self.model.train_on_batch([img, ir], y)
 
+    def predict(self, img, ir):
+        img, ir = self.pre_data(img, ir)
+        return self.model.predict_on_batch([img, ir])
+
+    def save(self):
+        self.model.save(MODEL_PATH)
+
+if __name__ == '__main__':
+    model = DeepModel()
+    model.train(np.zeros((32, 32)), '01', 3)
+    model.save()
 
 """
 # the data, shuffled and split between train and test sets
