@@ -4,14 +4,15 @@ from keras.layers import Input, Dense, Dropout, Activation, Flatten, merge
 from keras.layers import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD
 from keras.utils import np_utils
+from memory import ReplayMemory
 import numpy as np
 import os
 import cv2
 import h5py
 
-MODEL_PATH = "car/model.h5"
+MODEL_PATH = "car/classify/model.h5"
 
-class DeepModel:
+class Model:
     def __init__(self):
         if not os.path.isfile(MODEL_PATH):
             camera_input = Input(shape=(1, 32, 32), dtype='float32', name='camera_input')
@@ -41,13 +42,13 @@ class DeepModel:
             conv6 = Dropout(0.25)(conv6)
             conv6 = Flatten()(conv6)
 
-            ir_input = Input(shape=(2,), dtype='uint8', name='ir_input')
+            # ir_input = Input(shape=(2,), dtype='uint8', name='ir_input')
 
-            x = merge([conv6, ir_input], mode='concat')
-            x = Dense(500, activation='relu')(x)
+            # x = merge([conv6, ir_input], mode='concat')
+            x = Dense(500, activation='relu')(conv6)
             x = Dropout(0.5)(x)
             prob = Dense(5, activation='softmax')(x)
-            model = Model(input=[camera_input, ir_input], output=[prob])
+            model = Model(input=[camera_input], output=[prob])
             model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
             model._make_train_function()
             model._make_predict_function()
@@ -56,30 +57,32 @@ class DeepModel:
             model = load_model(MODEL_PATH)
 
         self.model = model
+        self.memory = ReplayMemory('car/model_classify/repaly_memory.h5')
         print('[Model] ready')
 
-    def pre_data(self, img, ir):
+    def pre_data(self, img):
         img = np.reshape(img, (1, 1, 32, 32)).astype(np.float32)
         img = img/255
-        ir_output = np.zeros((1, 2), dtype=np.uint8)
-        ir_output[0][0] = ir[0] == '1'
-        ir_output[0][1] = ir[1] == '1'
-        return img, ir_output
+        return img
 
-    def train(self, img, ir, command):
-        img, ir = self.pre_data(img, ir)
-        y = np.zeros((1, 5))
-        y[0][command] = 1.
-        return self.model.train_on_batch([img, ir], y)
+    def push(self, img, label):
+        self.memory.add(self.pre_data(img), label)
 
-    def predict(self, img, ir):
-        img, ir = self.pre_data(img, ir)
-        return self.model.predict_on_batch([img, ir])
+    def train(self):
+        X, y = self.memory.sample()
+        Y = np.zeros((len(y),), dtype=np.float32)
+        for i, _y in enumerate(y):
+            Y[i][_y] = 1.
+        return self.model.train_on_batch(X, Y)
+
+    def predict(self, img):
+        img = self.pre_data(img)
+        return self.model.predict_on_batch(img)
 
     def save(self):
         self.model.save(MODEL_PATH)
 
 if __name__ == '__main__':
-    model = DeepModel()
-    model.train(np.zeros((32, 32)), '01', 3)
+    model = Model()
+    model.train(np.zeros((32, 32)), 3)
     model.save()

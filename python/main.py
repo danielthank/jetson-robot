@@ -82,7 +82,8 @@ with Main() as main:
                 idx = key2action(ch)
                 main.car.action(idx)
                 main.ttydefault()
-                print('[Loss] ' + str(main.car.model.train(img, ir, idx)))
+                main.car.model.push(img, idx)
+                print('[Loss] ' + str(main.car.model.train()))
                 main.ttyraw()
             elif ch == 'q':
                 sys.exit()
@@ -90,7 +91,7 @@ with Main() as main:
             img = main.get_img()
             ir = main.arduino.request('i\n')
             main.ttydefault()
-            prob = main.car.model.predict(img, ir)[0]
+            prob = main.car.model.predict(img)[0]
             print('[Predict] ' + str(prob))
             main.car.action(np.argmax(prob))
             main.ttyraw()
