@@ -92,7 +92,7 @@ class DQN:
         post_camera[:,2,...] -= 123.68
 
         targets = self.model.predict_on_batch(images) # get state's actionQs for ref
-        actionQs_t1 = self.model.predict_on_batch(images) # one step look ahead
+        actionQs_t1 = self.model.predict_on_batch(post_camera) # one step look ahead
 
         ## calc targets ##
         batch_targetQs = (1 - np.array(terminals))*GAMMA*np.max(actionQs_t1, axis=1) + np.array(rewards)
