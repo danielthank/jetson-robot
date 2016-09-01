@@ -60,8 +60,12 @@ class ReplayMemory:
         indexes = []
         while len(indexes) < self.batch_size:
             index = random.randint(0, self.count-1)
-            self._camera[len(indexes), ...] = self.camera_inputs[(self.current + index) % self.memory_size]
+            while index != self.current - 1:
+                index = random.randint(0, self.count-1)
+
+            self._camera[len(indexes), ...] = self.camera_inputs[index]
             indexes.append(index)
+
         labels = self.labels[indexes]
 
         return self._camera, labels
@@ -69,10 +73,17 @@ class ReplayMemory:
     def sample_dqn(self):
         indexes = []
         while len(indexes) < self.batch_size:
-            index = random.randint(1, self.count-1)
-            self._pre_camera[len(indexes), ...] = self.camera_inputs[(self.current + index - 1) % self.memory_size]
-            self._post_camera[len(indexes), ...] = self.camera_inputs[(self.current + index) % self.memory_size]
+            index = random.randint(0, self.count-1)
+            while index != self.current - 1 and not self.terminals[index]:
+                index = random.randint(0, self.count-1)
+
+            self._pre_camera[len(indexes), ...] = self.camera_inputs[index]
+            if index == self.memory_size - 1:
+                self._post_camera[len(indexes), ...] = self.camera_inputs[0]
+            else:
+                self._post_camera[len(indexes), ...] = self.camera_inputs[index+1]
             indexes.append(index)
+
         actions = self.actions[indexes]
         rewards = self.rewards[indexes]
         terminals = self.terminals[indexes]

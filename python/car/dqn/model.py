@@ -64,10 +64,10 @@ class DQN:
         image = image.transpose((2, 0, 1))
         self.memory.push(image, label)
 
-    def push_dqn(self, img, action, reward, terminal):
+    def push_dqn(self, image, action, reward, terminal):
         image = cv2.resize(image, (224, 224)).astype(np.uint8)
         image = image.transpose((2, 0, 1))
-        self.memory.push(img, action, reward, terminal)
+        self.memory.push(image, action, reward, terminal)
 
     def train_label(self):
         images, labels = self.memory.sample()
@@ -81,24 +81,25 @@ class DQN:
         return self.model.train_on_batch(images, y)
 
     def train_dqn(self):
-        images, actions, rewards, post_camera, terminals = self.memory.sample()
-        images = images.astype(np.float32)
-        images[:,0,...] -= 103.939
-        images[:,1,...] -= 116.779
-        images[:,2,...] -= 123.68
+        pre_camera, actions, rewards, post_camera, terminals = self.memory.sample()
+        pre_camera = pre_camera.astype(np.float32)
+        pre_camera[:,0,...] -= 103.939
+        pre_camera[:,1,...] -= 116.779
+        pre_camera[:,2,...] -= 123.68
 
+        post_camera = post_camera.astype(np.float32)
         post_camera[:,0,...] -= 103.939
         post_camera[:,1,...] -= 116.779
         post_camera[:,2,...] -= 123.68
 
-        targets = self.model.predict_on_batch(images) # get state's actionQs for ref
+        targets = self.model.predict_on_batch(pre_camera) # get state's actionQs for ref
         actionQs_t1 = self.model.predict_on_batch(post_camera) # one step look ahead
 
         ## calc targets ##
         batch_targetQs = (1 - np.array(terminals))*GAMMA*np.max(actionQs_t1, axis=1) + np.array(rewards)
-        targets[np.arange(images.shape[0]), actions] = batch_targetQs
+        targets[np.arange(pre_camera.shape[0]), actions] = batch_targetQs
 
-        return self.model.train_on_batch(images, targets)
+        return self.model.train_on_batch(pre_camera, targets)
 
     def predict(self, image):
         image = cv2.resize(image, (224, 224)).astype(np.float32)
@@ -119,11 +120,12 @@ class DQN:
         self.memory.save()
 
 if __name__ == '__main__':
+    """
     model = DQN(pre_training=True)
     model.push(np.zeros((224, 224, 3)), 1)
     model.push(np.zeros((224, 224, 3)), 2)
     model.push(np.zeros((224, 224, 3)), 3)
-    model.train()
+    print(model.train())
     model.save_model()
     model.save_memory()
     """
@@ -132,5 +134,6 @@ if __name__ == '__main__':
     model.push(np.zeros((224, 224, 3)), 3, 2, False)
     model.push(np.zeros((224, 224, 3)), 3, 2, False)
     model.push(np.zeros((224, 224, 3)), 3, 1, True)
-    model.save()
-    """
+    print(model.train())
+    model.save_model()
+    model.save_memory()
