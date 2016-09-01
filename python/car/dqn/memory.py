@@ -6,7 +6,7 @@ import h5py
 class ReplayMemory:
     def __init__(self, pre_training):
         self.pre_training = pre_training
-        self.memory_size = 10000
+        self.memory_size = 1000
         self.batch_size = 32
 
         if self.pre_training:
@@ -14,7 +14,7 @@ class ReplayMemory:
             self.sample = self.sample_label
             self.load = self.load_label
             self.save = self.save_label
-            self._camera  = np.empty((self.batch_size, 3, 224, 224), dtype=np.uint8)
+            self._camera = np.empty((self.batch_size, 3, 224, 224), dtype=np.uint8)
             self.filepath = 'car/dqn/memory_label.h5'
         else:
             self.push = self.push_dqn
