@@ -6,7 +6,16 @@ import h5py
 MEMORY_PATH = 'car/dqn/replay_memory.h5'
 
 class ReplayMemory:
-    def __init__(self):
+    def __init__(self, pre_training):
+        self.pre_training = pre_training
+
+        if self.pre_training:
+            self.add = self.add_label
+            self.sample = self.sample_label
+        else:
+            self.add = self.add_dqn
+            self.sample = self.sample_dqno
+
         self.filepath = MEMORY_PATH
         self.memory_size = 10000
         self.batch_size = 32
@@ -21,9 +30,11 @@ class ReplayMemory:
             self.terminals = np.empty(self.memory_size, dtype = np.bool)
             self.count = 0
             self.current = 0
-        print('[Memory] ready')
 
-    def add(self, camera_input, reward, action, terminal):
+    def add_label(self, camera_input, label):
+        pass
+
+    def add_dqn(self, camera_input, reward, action, terminal):
         self.actions[self.current] = action
         self.rewards[self.current] = reward
         self.camera_inputs[self.current, ...] = camera_input
@@ -34,7 +45,10 @@ class ReplayMemory:
     def clear(self):
         self.count, self.current = 0, 0
 
-    def sample(self):
+    def sample_label(self):
+        pass
+
+    def sample_dqn(self):
         indexes = []
         while len(indexes) < self.batch_size:
             index = random.randint(1, self.count-1)

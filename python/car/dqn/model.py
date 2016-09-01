@@ -13,17 +13,24 @@ import h5py
 MODEL_PATH = 'car/dqn/model.h5'
 VGG_PATH = 'car/dqn/vgg_model.h5'
 
-def pre_data(self, img):
-    img = cv2.resize(img, (224, 224)).astype(np.float32)
-    img[:,:,0] -= 103.939
-    img[:,:,1] -= 116.779
-    img[:,:,2] -= 123.68
-    img = im.transpose((2,0,1))
-    img = np.expand_dims(im, axis=0)
-    return img
+def pre_data(self, image):
+    image = cv2.resize(image, (224, 224)).astype(np.float32)
+    image[:,:,0] -= 103.939
+    image[:,:,1] -= 116.779
+    image[:,:,2] -= 123.68
+    image = im.transpose((2,0,1))
+    image = np.expand_dims(im, axis=0)
+    return image
 
 class DQN:
-    def __init__(self):
+    def __init__(self, pre_training):
+        self.pre_training = pre_training
+        if self.pre_training:
+            self.train = self.train_label
+            self.push = self.push_label
+        else:
+            self.train = self.train_dqn
+            self.push = self.push_dqn
         if not os.path.isfile(MODEL_PATH):
             vgg = load_model(VGG_PATH)
             vgg.trainable = False
@@ -45,30 +52,30 @@ class DQN:
         else:
             model = load_model(MODEL_PATH)
         self.model = model
-        self.memory = ReplayMemory()
+        self.memory = ReplayMemory(self.pre_training)
         print('[Model] ready')
 
-    def push(self, img, action, reward, terminal):
+    def push_label(self, img, label):
+        self.memory.add(pre_img(img), label)
+
+    def push_dqn(self, img, action, reward, terminal):
         self.memory.add(pre_img(img), action, reward, terminal)
 
-    def train(self):
-        pre_camera, actions, rewards, post_camera, terminals = memory.sample()
-
-        X, y = self.memory.sample()
-        Y = np.zeros((len(y),), dtype=np.float32)
-        for i, _y in enumerate(y):
-            Y[i][_y] = 1.
-        return self.model.train_on_batch(X, Y)
+    def train_label(self):
+        images, labels = memory.sample()
+        
+    def train_dqn(self):
+        images, actions, rewards, post_camera, terminals = memory.sample()
 
     def predict(self, img):
         img = self.pre_data(img)
         return self.model.predict_on_batch(img)
 
     def save(self):
-        self.model.save(MODEL_PATH)
+        self.model.save_dqn(MODEL_PATH)
 
 if __name__ == '__main__':
-    model = DQN()
+    model = DQN(pre_training=True)
     model.push(np.zeros((3, 224, 224)), 2, 1, True)
     model.push(np.zeros((3, 224, 224)), 3, 2, False)
     model.push(np.zeros((3, 224, 224)), 3, 2, False)
