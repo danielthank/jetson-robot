@@ -1,5 +1,5 @@
 from blacklane import BlackLaneDetector
-from model_classify.model import Model
+from model_classify.model import DeepModel
 
 class Car:
     def __init__(self, arduino):
@@ -15,7 +15,7 @@ class Car:
         self.rSpeed = 0
         self.lSpeed = 0
         self.gamma = 0.5
-        self.model = Model()
+        self.model = DeepModel()
         self.detector = BlackLaneDetector() 
     def action(self, idx) :
         funcs = [self.forward, self.backward, self.right, self.left, self.stop]
