@@ -13,24 +13,17 @@ import h5py
 MODEL_PATH = 'car/dqn/model.h5'
 VGG_PATH = 'car/dqn/vgg_model.h5'
 
-def pre_data(self, image):
-    image = cv2.resize(image, (224, 224)).astype(np.float32)
-    image[:,:,0] -= 103.939
-    image[:,:,1] -= 116.779
-    image[:,:,2] -= 123.68
-    image = im.transpose((2,0,1))
-    image = np.expand_dims(im, axis=0)
-    return image
-
 class DQN:
     def __init__(self, pre_training):
         self.pre_training = pre_training
+
         if self.pre_training:
             self.train = self.train_label
             self.push = self.push_label
         else:
             self.train = self.train_dqn
             self.push = self.push_dqn
+
         if not os.path.isfile(MODEL_PATH):
             vgg = load_model(VGG_PATH)
             vgg.trainable = False
@@ -51,34 +44,61 @@ class DQN:
             model.save(MODEL_PATH)
         else:
             model = load_model(MODEL_PATH)
+
         self.model = model
         self.memory = ReplayMemory(self.pre_training)
         print('[Model] ready')
 
-    def push_label(self, img, label):
-        self.memory.add(pre_img(img), label)
+    def push_label(self, image, label):
+        image = cv2.resize(image, (224, 224)).astype(np.uint8)
+        image = image.transpose((2, 0, 1))
+        self.memory.push(image, label)
 
     def push_dqn(self, img, action, reward, terminal):
-        self.memory.add(pre_img(img), action, reward, terminal)
+        image = cv2.resize(image, (224, 224)).astype(np.uint8)
+        image = image.transpose((2, 0, 1))
+        self.memory.push(img, action, reward, terminal)
 
     def train_label(self):
-        images, labels = memory.sample()
-        
-    def train_dqn(self):
-        images, actions, rewards, post_camera, terminals = memory.sample()
+        images, labels = self.memory.sample()
+        images = images.astype(np.float32)
+        images[:,0,...] -= 103.939
+        images[:,1,...] -= 116.779
+        images[:,2,...] -= 123.68
+        y = np.zeros((len(labels), 5), dtype=np.float32)
+        for i, label in enumerate(labels):
+            y[i][label] = 1.
+        return self.model.predict_on_batch(images, y)
 
-    def predict(self, img):
-        img = self.pre_data(img)
-        return self.model.predict_on_batch(img)
+    def train_dqn(self):
+        images, actions, rewards, post_camera, terminals = self.memory.sample()
+        images = images.astype(np.float32)
+        images[:,0,...] -= 103.939
+        images[:,1,...] -= 116.779
+        images[:,2,...] -= 123.68
+
+    def predict(self, image):
+        image = cv2.resize(image, (224, 224)).astype(np.float32)
+        image = image.transpose((2, 0, 1))
+        images[0,...] -= 103.939
+        images[1,...] -= 116.779
+        images[2,...] -= 123.68
+        image = np.expand_dims(image, axis=0)
+        return self.model.predict_on_batch(image)
 
     def save(self):
-        self.model.save_dqn(MODEL_PATH)
+        self.model.save(MODEL_PATH)
 
 if __name__ == '__main__':
     model = DQN(pre_training=True)
-    model.push(np.zeros((3, 224, 224)), 2, 1, True)
-    model.push(np.zeros((3, 224, 224)), 3, 2, False)
-    model.push(np.zeros((3, 224, 224)), 3, 2, False)
-    model.push(np.zeros((3, 224, 224)), 3, 1, True)
+    model.push(np.zeros((224, 224, 3)), 1)
+    model.push(np.zeros((224, 224, 3)), 2)
+    model.push(np.zeros((224, 224, 3)), 3)
     model.train()
+    model.save()
+    model = DQN(pre_training=False)
+    model.push(np.zeros((224, 224, 3)), 2, 1, True)
+    model.push(np.zeros((224, 224, 3)), 3, 2, False)
+    model.push(np.zeros((224, 224, 3)), 3, 2, False)
+    model.push(np.zeros((224, 224, 3)), 3, 1, True)
     model.save()
