@@ -4,6 +4,7 @@ from keras.layers import Input, Dense, Dropout, Activation, Flatten, merge
 from keras.layers import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD
 from keras.utils import np_utils
+from keras import backend as K
 from memory import ReplayMemory
 import numpy as np
 import os
@@ -12,6 +13,12 @@ import h5py
 
 MODEL_PATH = 'car/dqn/model.h5'
 VGG_PATH = 'car/dqn/vgg_model.h5'
+
+GAMMA = 0.99 # decay rate of future rewards
+
+def sum_squared_error(y_true, y_pred):
+    return K.sum(K.square(y_true - y_pred), axis=-1)
+
 
 class DQN:
     def __init__(self, pre_training):
@@ -26,18 +33,18 @@ class DQN:
 
         if not os.path.isfile(MODEL_PATH):
             vgg = load_model(VGG_PATH)
-            camera_input = Input(shape=(3, 224, 224), dtype='float32')
+            camera_input = Input(shape=(3, 224, 224), dtype='float32', name='camera_input')
             """
             ir_input = Input(shape=(2, ), dtype='float32')
             x = merge([vgg(camera_input), ir_input], mode='concat')
             x = Dense(1024, activation='relu')(x)
             """
-            x = Dense(1024, activation='relu')(vgg(camera_input))
-            x = Dropout(0.5)(x)
-            Q = Dense(5)(x)
+            x = Dense(1024, activation='relu', name='fc1')(vgg(camera_input))
+            x = Dropout(0.5, name='dropout1')(x)
+            actionQs = Dense(5, name='actionQs')(x)
 
-            model = Model(input=[camera_input], output=[Q])
-            model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
+            model = Model(input=[camera_input], output=[actionQs])
+            model.compile(optimizer='rmsprop', loss=sum_squared_error, metrics=['accuracy'])
             model._make_train_function()
             model._make_predict_function()
             self.model = model
@@ -79,6 +86,19 @@ class DQN:
         images[:,0,...] -= 103.939
         images[:,1,...] -= 116.779
         images[:,2,...] -= 123.68
+
+        post_camera[:,0,...] -= 103.939
+        post_camera[:,1,...] -= 116.779
+        post_camera[:,2,...] -= 123.68
+
+        targets = self.model.predict_on_batch(images) # get state's actionQs for ref
+        actionQs_t1 = self.model.predict_on_batch(images) # one step look ahead
+
+        ## calc targets ##
+        batch_targetQs = (1 - np.array(terminals))*GAMMA*np.max(actionQs_t1, axis=1) + np.array(rewards)
+        targets[np.arange(images.shape[0]), actions] = batch_targetQs
+
+        return self.model.train_on_batch(images, targets)
 
     def predict(self, image):
         image = cv2.resize(image, (224, 224)).astype(np.float32)
