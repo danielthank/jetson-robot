@@ -3,8 +3,6 @@ import random
 import numpy as np
 import h5py
 
-MEMORY_PATH = 'car/dqn/replay_memory.h5'
-
 class ReplayMemory:
     def __init__(self, pre_training):
         self.pre_training = pre_training
@@ -17,7 +15,7 @@ class ReplayMemory:
             self.load = self.load_label
             self.save = self.save_label
             self._camera  = np.empty((self.batch_size, 3, 224, 224), dtype=np.uint8)
-            self.filepath = 'car/dqn/memory_label'
+            self.filepath = 'car/dqn/memory_label.h5'
         else:
             self.push = self.push_dqn
             self.sample = self.sample_dqn
@@ -25,7 +23,7 @@ class ReplayMemory:
             self.save = self.save_dqn
             self._pre_camera = np.empty((self.batch_size, 3, 224, 224), dtype=np.uint8)
             self._post_camera = np.empty((self.batch_size, 3, 224, 224), dtype=np.uint8)
-            self.filepath = 'car/dqn/memory_dqn'
+            self.filepath = 'car/dqn/memory_dqn.h5'
 
         if os.path.isfile(self.filepath):
             self.load()
@@ -39,6 +37,7 @@ class ReplayMemory:
                 self.actions = np.empty(self.memory_size, dtype=np.uint8)
                 self.rewards = np.empty(self.memory_size, dtype=np.float32)
                 self.terminals = np.empty(self.memory_size, dtype=np.bool)
+        print('[Memory] Ready')
 
     def push_label(self, camera_input, label):
         self.camera_inputs[self.current, ...] = camera_input
@@ -123,7 +122,7 @@ if __name__ == '__main__':
     memory.save()
     memory1 = ReplayMemory(pre_training=True)
     for i in range(32):
-        memory1.push(np.ones((3, 224, 224), dtype=np.uint8), 5)
+        memory1.push(np.ones((3, 224, 224), dtype=np.uint8), 2)
     camera, labels = memory1.sample()
     print(labels)
     memory1.save()

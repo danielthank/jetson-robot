@@ -26,7 +26,6 @@ class DQN:
 
         if not os.path.isfile(MODEL_PATH):
             vgg = load_model(VGG_PATH)
-            vgg.trainable = False
             camera_input = Input(shape=(3, 224, 224), dtype='float32')
             """
             ir_input = Input(shape=(2, ), dtype='float32')
@@ -41,11 +40,15 @@ class DQN:
             model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
             model._make_train_function()
             model._make_predict_function()
-            model.save(MODEL_PATH)
+            self.model = model
+            self.save_model()
         else:
-            model = load_model(MODEL_PATH)
+            self.model = self.load_model()
 
-        self.model = model
+        # VGG trainable = False
+        self.model.layers[1].trainable=False
+        # print(self.model.trainable_weights)
+
         self.memory = ReplayMemory(self.pre_training)
         print('[Model] ready')
 
@@ -68,7 +71,7 @@ class DQN:
         y = np.zeros((len(labels), 5), dtype=np.float32)
         for i, label in enumerate(labels):
             y[i][label] = 1.
-        return self.model.predict_on_batch(images, y)
+        return self.model.train_on_batch(images, y)
 
     def train_dqn(self):
         images, actions, rewards, post_camera, terminals = self.memory.sample()
@@ -86,8 +89,14 @@ class DQN:
         image = np.expand_dims(image, axis=0)
         return self.model.predict_on_batch(image)
 
-    def save(self):
+    def save_model(self):
         self.model.save(MODEL_PATH)
+
+    def load_model(self):
+        return load_model(MODEL_PATH)
+
+    def save_memory(self):
+        self.memory.save()
 
 if __name__ == '__main__':
     model = DQN(pre_training=True)
@@ -95,10 +104,13 @@ if __name__ == '__main__':
     model.push(np.zeros((224, 224, 3)), 2)
     model.push(np.zeros((224, 224, 3)), 3)
     model.train()
-    model.save()
+    model.save_model()
+    model.save_memory()
+    """
     model = DQN(pre_training=False)
     model.push(np.zeros((224, 224, 3)), 2, 1, True)
     model.push(np.zeros((224, 224, 3)), 3, 2, False)
     model.push(np.zeros((224, 224, 3)), 3, 2, False)
     model.push(np.zeros((224, 224, 3)), 3, 1, True)
     model.save()
+    """
