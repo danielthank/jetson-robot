@@ -1,5 +1,5 @@
 from __future__ import print_function
-from keras.models import load_model, Model
+from keras.models import Model
 from keras.layers import Input, Dense, Dropout, Activation, Flatten, merge
 from keras.layers import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD
@@ -11,8 +11,8 @@ import os
 import cv2
 import h5py
 
-MODEL_PATH = 'car/dqn/model.h5'
-VGG_PATH = 'car/dqn/vgg_model.h5'
+VGG_MODEL_PATH = 'car/dqn/vgg_model.h5'
+TOP_MODEL_PATH = 'car/dqn/top_model.h5'
 
 GAMMA = 0.99 # decay rate of future rewards
 
@@ -31,30 +31,32 @@ class DQN:
             self.train = self.train_dqn
             self.push = self.push_dqn
 
-        if not os.path.isfile(MODEL_PATH):
-            vgg = load_model(VGG_PATH)
-            camera_input = Input(shape=(3, 224, 224), dtype='float32', name='camera_input')
-            """
-            ir_input = Input(shape=(2, ), dtype='float32')
-            x = merge([vgg(camera_input), ir_input], mode='concat')
-            x = Dense(1024, activation='relu')(x)
-            """
-            x = Dense(1024, activation='relu', name='fc1')(vgg(camera_input))
-            x = Dropout(0.5, name='dropout1')(x)
-            actionQs = Dense(5, name='actionQs')(x)
+        if not os.path.isfile(TOP_MODEL_PATH):
+            top_model_input = Input(shape=vgg.output_shape[1:])
+            fc1 = Dense(1024, activation='relu', name='fc1')(top_model_input)
+            dropout1 = Dropout(0.5, name='dropout1')(fc1)
+            actionQs = Dense(5, name='actionQs')(dropout1)
+            top_model = Model(input=[top_model_input], output=[actionQs])
+            top_model.save('TOP_MODEL_PATH')
+            self.top_model = top_model
+        else:
+            self.top_model = self.load_model(TOP_MODEL_PATH)
 
-            model = Model(input=[camera_input], output=[actionQs])
-            model.compile(optimizer='rmsprop', loss=sum_squared_error, metrics=['accuracy'])
-            model._make_train_function()
-            model._make_predict_function()
-            self.model = model
-            self.save_model()
+        vgg_model = self.load_model(VGG_MODEL_PATH)
+        
+        vgg.inbound_nodes[0].input_tensors[0]
+
+        model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
+        self.model = model
+        self.save_model()
         else:
             self.model = self.load_model()
 
         # VGG trainable = False
         self.model.layers[1].trainable=False
-        # print(self.model.trainable_weights)
+        self.model._make_train_function()
+        self.model._make_predict_function()
+        print(self.model.trainable_weights)
 
         self.memory = ReplayMemory(self.pre_training)
         print('[Model] ready')
@@ -110,22 +112,23 @@ class DQN:
         image = np.expand_dims(image, axis=0)
         return self.model.predict_on_batch(image)
 
-    def save_model(self):
-        self.model.save(MODEL_PATH)
-
-    def load_model(self):
-        return load_model(MODEL_PATH)
+    def load_model(self, filepath):
+        from keras.model import load_model
+        return load_model(filepath)
 
     def save_memory(self):
         self.memory.save()
 
 if __name__ == '__main__':
-    """
     model = DQN(pre_training=True)
     model.push(np.zeros((224, 224, 3)), 1)
     model.push(np.zeros((224, 224, 3)), 2)
     model.push(np.zeros((224, 224, 3)), 3)
+    print(1)
+    model.save_memory()
+    print(2)
     print(model.train())
+    print(3)
     model.save_model()
     model.save_memory()
     """
@@ -137,3 +140,5 @@ if __name__ == '__main__':
     print(model.train())
     model.save_model()
     model.save_memory()
+    print(model.predict(np.zeros((224, 224, 3))))
+    """
