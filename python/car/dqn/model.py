@@ -15,6 +15,7 @@ MODEL_PATH = 'car/dqn/model.h5'
 VGG_PATH = 'car/dqn/vgg_model.h5'
 
 GAMMA = 0.99 # decay rate of future rewards
+TARGET_UPDATE_FREQ = 10000 # frequency of update params of target freezing network
 
 def sum_squared_error(y_true, y_pred):
     return K.sum(K.square(y_true - y_pred), axis=-1)
@@ -56,8 +57,17 @@ class DQN:
         self.model.layers[1].trainable=False
         # print(self.model.trainable_weights)
 
+        ## target freezing network ##
+        target_model = Model.from_config(self.model.get_config())
+        target_model.trainable = False
+        target_model.compile(optimizer='rmsprop', loss=sum_squared_error, metrics=['accuracy'])
+        self.target_model = target_model
+
         self.memory = ReplayMemory(self.pre_training)
         print('[Model] ready')
+
+    def UpdateTarget(self):
+        self.target_model.set_weights(self.model.get_weights())
 
     def push_label(self, image, label):
         image = cv2.resize(image, (224, 224)).astype(np.uint8)
@@ -92,7 +102,7 @@ class DQN:
         post_camera[:,2,...] -= 123.68
 
         targets = self.model.predict_on_batch(images) # get state's actionQs for ref
-        actionQs_t1 = self.model.predict_on_batch(post_camera) # one step look ahead
+        actionQs_t1 = self.target_model.predict_on_batch(post_camera) # one step look ahead
 
         ## calc targets ##
         batch_targetQs = (1 - np.array(terminals))*GAMMA*np.max(actionQs_t1, axis=1) + np.array(rewards)
