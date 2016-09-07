@@ -6,8 +6,8 @@ import h5py
 class ReplayMemory:
     def __init__(self, pre_training):
         self.pre_training = pre_training
-        self.memory_size = 100
-        self.batch_size = 4
+        self.memory_size = 1000
+        self.batch_size = 8
 
         if self.pre_training:
             self.push = self.push_label
@@ -63,6 +63,8 @@ class ReplayMemory:
             self._camera[len(indexes), ...] = self.camera_inputs[(self.current + index) % self.memory_size]
             indexes.append(index)
         labels = self.labels[indexes]
+        print(labels)
+        # print(self._camera)
 
         return self._camera, labels
 

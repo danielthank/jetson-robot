@@ -67,7 +67,7 @@ with Main() as main:
     ir = main.arduino.request('i\n')
     img = main.vs.read()
     while True:
-        if sys.stdin in select.select([sys.stdin], [], [], 1)[0]:
+        if sys.stdin in select.select([sys.stdin], [], [], 2)[0]:
             ch = sys.stdin.read(1)
             if ch == '\x1b' or ch == ' ':
                 if ch == '\x1b':
@@ -93,5 +93,4 @@ with Main() as main:
             if cv2.waitKey(100)  == ord('q'):
                 break
             """
-
 

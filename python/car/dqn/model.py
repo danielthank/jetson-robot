@@ -2,7 +2,7 @@ from __future__ import print_function
 from keras.models import load_model, Model
 from keras.layers import Input, Dense, Dropout, Activation, Flatten, merge, Convolution2D, MaxPooling2D, Lambda
 from keras.layers import Convolution2D, MaxPooling2D
-from keras.optimizers import SGD
+from keras.optimizers import SGD, RMSprop
 from keras.utils import np_utils
 from keras import backend as K
 from memory import ReplayMemory
@@ -104,11 +104,13 @@ class DQN:
 
             ## DQN model ##
             dqn = Model(input=input_model_ins, output=[actionQs])
-            dqn.compile(optimizer='rmsprop', loss='mean_squared_error', metrics=['accuracy'])
             self.dqn = dqn
             self.save_dqn()
         else:
             self.dqn = self.load_dqn()
+
+        rms = RMSprop(lr=0.001)
+        self.dqn.compile(optimizer=rms, loss='mean_squared_error', metrics=['accuracy'])
 
         ## build training model ##
         if not self.pre_training:
@@ -157,6 +159,7 @@ class DQN:
     def push_label(self, image, label):
         image = cv2.resize(image, (224, 224)).astype(np.uint8)
         image = image.transpose((2, 0, 1))
+        print(image, label)
         self.memory.push(image, label)
 
     def push_dqn(self, image, action, reward, terminal):
@@ -172,7 +175,7 @@ class DQN:
         images[:,2,...] -= 123.68
         y = np.zeros((len(labels), 5), dtype=np.float32)
         for i, label in enumerate(labels):
-            y[i][label] = 1.
+            y[i][label] = 100.
         return self.dqn.train_on_batch(images, y)
 
     def train_dqn(self):
