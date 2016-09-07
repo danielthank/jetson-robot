@@ -1,8 +1,8 @@
 from blacklane import BlackLaneDetector
-from model_classify.model import DeepModel
+from dqn.model import DQN
 
 class Car:
-    def __init__(self, arduino):
+    def __init__(self, arduino, pre_training=True):
         self.ROTATE_SPEED = 20
         self.BASE_SPEED = 20
         self.MAX_SPEED = 90
@@ -15,8 +15,9 @@ class Car:
         self.rSpeed = 0
         self.lSpeed = 0
         self.gamma = 0.5
-        self.model = DeepModel()
+        self.model = DQN(pre_training=pre_training)
         self.detector = BlackLaneDetector() 
+
     def action(self, idx) :
         funcs = [self.forward, self.backward, self.right, self.left, self.stop]
         if idx < len(funcs):

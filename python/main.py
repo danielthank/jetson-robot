@@ -28,8 +28,8 @@ class Main:
         cv2.destroyAllWindows()
         self.ttydefault()
         self.car.stop()
-        self.car.model.save()
-
+        self.car.model.save_dqn()
+        self.car.model.memory.save()
 
     def ttyraw(self):
         tty.setraw(self.fd)
@@ -43,12 +43,6 @@ class Main:
         print('    v : read data from video')
         print('    p : read data from picture')
         sys.exit()
-    
-    def get_img(self):
-        img = self.vs.read()
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        img = cv2.resize(img, (32, 32))
-        return img
         
 def key2action(key):
     if key  == '\x1b[A':
@@ -72,9 +66,9 @@ def redirect_stderr(self,flag):
 with Main() as main:
     main.ttyraw()
     ir = main.arduino.request('i\n')
-    img = main.get_img()
+    img = main.vs.read()
     while True:
-        if sys.stdin in select.select([sys.stdin], [], [], 1)[0]:
+        if sys.stdin in select.select([sys.stdin], [], [], 2)[0]:
             ch = sys.stdin.read(1)
             if ch == '\x1b' or ch == ' ':
                 if ch == '\x1b':
@@ -83,22 +77,19 @@ with Main() as main:
                 main.car.action(idx)
                 main.ttydefault()
                 main.car.model.push(img, idx)
-                print('[Loss] ' + str(main.car.model.train()))
+                print('[Train] ' + str(main.car.model.train()))
                 main.ttyraw()
             elif ch == 'q':
                 sys.exit()
         else:
-            img = main.get_img()
+            img = main.vs.read()
             ir = main.arduino.request('i\n')
             main.ttydefault()
             prob = main.car.model.predict(img)[0]
             print('[Predict] ' + str(prob))
             main.car.action(np.argmax(prob))
             main.ttyraw()
-            """
             cv2.imshow('test', img)
-            if cv2.waitKey(100)  == ord('q'):
+            if cv2.waitKey(50)  == ord('q'):
                 break
-            """
-
 

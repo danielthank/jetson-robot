@@ -108,7 +108,7 @@ class FindMotion:
         #diff = sess.run(c, feed_dict={b:stack_target, a:stack_ref})
         print '5', timeit.default_timer()
         
-        """ 
+        """
         n=(IMG_SIZE[1]/BLOCK[0])*(IMG_SIZE[0]/BLOCK[1])
         motions_flat =  get_motions(diff,n)
         #motions = np.array([motions_flat / (2*WINDOW[0]+1), motions_flat % (2*WINDOW[1]+1)]) - [np.array(WINDOW)]
@@ -132,7 +132,6 @@ class FindMotion:
             cv2.circle(self.img_t, tuple(block_center), 2, 0, -1)
             cv2.line(self.img_t, tuple(block_center), tuple(np.array(block_center+MAG*motion_n, dtype=np.int)), 255, 1)
             #print (block_y, block_x)
-        
         print "6",timeit.default_timer()
     def run(self):
         ret, frame = self.video.read()
@@ -151,7 +150,7 @@ class FindMotion:
             cv2.imshow('frame', frame)
             cv2.imshow('gray_tm1', self.img_tm1)
             cv2.imshow('gray_t', self.img_t)
-            key = cv2.waitKey(1) & 0xFF
+            key = cv2.waitKey(50) & 0xFF
             if key == ord('q'):
                 break
             self.img_tm1 = img_gray
@@ -160,5 +159,5 @@ class FindMotion:
 
 
 if __name__ == '__main__':
-    finder = FindMotion('./testData/Turn1.avi')
+    finder = FindMotion('./Turn4.avi')
     finder.run()
