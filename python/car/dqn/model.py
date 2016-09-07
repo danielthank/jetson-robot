@@ -105,12 +105,10 @@ class DQN:
             ## DQN model ##
             dqn = Model(input=input_model_ins, output=[actionQs])
             dqn.compile(optimizer='rmsprop', loss='mean_squared_error', metrics=['accuracy'])
-            dqn._make_train_function()
-            dqn._make_predict_function()
             self.dqn = dqn
-            self.save_DQN()
+            self.save_dqn()
         else:
-            self.dqn = self.load_DQN()
+            self.dqn = self.load_dqn()
 
         ## build training model ##
         if not self.pre_training:
@@ -145,6 +143,8 @@ class DQN:
             self.training_model._make_predict_function()
         else:
             self.training_model = self.dqn
+            self.training_model._make_train_function()
+            self.training_model._make_predict_function()
 
         # print(self.model.trainable_weights)
 
@@ -210,39 +210,48 @@ class DQN:
     def predict(self, image):
         image = cv2.resize(image, (224, 224)).astype(np.float32)
         image = image.transpose((2, 0, 1))
-        images[0,...] -= 103.939
-        images[1,...] -= 116.779
-        images[2,...] -= 123.68
+        image[0,...] -= 103.939
+        image[1,...] -= 116.779
+        image[2,...] -= 123.68
         image = np.expand_dims(image, axis=0)
         return self.dqn.predict_on_batch(image)
 
-    def save_DQN(self):
+    def save_dqn(self):
         self.dqn.save(DQN_PATH)
 
-    def load_DQN(self):
+    def load_dqn(self):
         return load_model(DQN_PATH)
 
     def save_memory(self):
         self.memory.save()
 
 if __name__ == '__main__':
+    """
     model = DQN(pre_training=True)
     #model.dqn.summary()
     #model.training_model.summary()
     #print(model.training_model.trainable_weights)
+    print(1)
     model.push(np.zeros((224, 224, 3)), 1)
     model.push(np.zeros((224, 224, 3)), 2)
     model.push(np.zeros((224, 224, 3)), 3)
+    print(2)
     model.train()
+    print(3)
     model.save_DQN()
+    print(4)
     model.save_memory()
+    print(5)
 
     model = DQN(pre_training=False)
     model.push(np.zeros((224, 224, 3)), 2, 1, True)
     model.push(np.zeros((224, 224, 3)), 3, 2, False)
     model.push(np.zeros((224, 224, 3)), 3, 2, False)
     model.push(np.zeros((224, 224, 3)), 3, 1, True)
-    model.train()
+    for i in range(10):
+        print(i)
+        model.train()
     model.save_DQN()
     model.save_memory()
+    """
 
