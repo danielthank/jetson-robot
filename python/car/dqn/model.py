@@ -12,10 +12,9 @@ import cv2
 import h5py
 
 DQN_PATH = 'car/dqn/dqn_model.h5'
-MODEL_PATH = 'car/dqn/complete_model.h5'
 VGG_PATH = 'car/dqn/vgg_model.h5'
 
-FRAME_NUM = 3
+FRAME_NUM = 1
 
 GAMMA = 0.99 # decay rate of future rewards
 TARGET_UPDATE_FREQ = 10000 # frequency of update params of target freezing network
@@ -68,7 +67,7 @@ class DQN:
             input_model_template = Model(input=vgg.input, output=vgg.get_layer('maxpooling2d_2').output)
             input_model_outs = []
             input_model_ins = []
-            for frame in FRAME_NUM:
+            for frame in xrange(FRAME_NUM):
                 input_model = Model.from_config(input_model_template.get_config())
                 input_model.set_weights(input_model_template.get_weights())
                 for layer in input_model.layers:
@@ -79,7 +78,10 @@ class DQN:
                     layer.trainable = False
                 input_model_ins.append(input_model.input)
                 input_model_outs.append(input_model.output)
-            input_merge = merge(input_model_outs, mode='concat', concat_axis=1, name='input_merge')
+            if FRAME_NUM > 1:
+                input_merge = merge(input_model_outs, mode='concat', concat_axis=1, name='input_merge')
+            else:
+                input_merge = input_model_outs[0]
 
             ## construct convolution block3 ##
             x = Convolution2D(256, 3, 3, activation='relu', border_mode='same', name='block3_conv1')(input_merge)
@@ -101,46 +103,48 @@ class DQN:
             actionQs = Dense(5, name='actionQs')(x)
 
             ## DQN model ##
-            DQN = Model(input=input_model_ins, output=[actionQs])
-            DQN.compile(optimizer='rmsprop', loss='mean_squared_error', metrics=['accuracy'])
-            DQN._make_train_function()
-            DQN._make_predict_function()
-            self.DQN = DQN
+            dqn = Model(input=input_model_ins, output=[actionQs])
+            dqn.compile(optimizer='rmsprop', loss='mean_squared_error', metrics=['accuracy'])
+            dqn._make_train_function()
+            dqn._make_predict_function()
+            self.dqn = dqn
             self.save_DQN()
         else:
-            self.DQN = self.load_DQN()
+            self.dqn = self.load_DQN()
 
-
+        ## build training model ##
         if not self.pre_training:
             ## state-action Q-value ##
             action_in = Input((5, ), dtype='float32', name='action_input')
-            actQ = Lambda(getActQ, output_shape=getActQ_outshape, name='action-Q')([self.DQN.output, action_in])
+            actQ = Lambda(getActQ, output_shape=getActQ_outshape, name='action-Q')([self.dqn.output, action_in])
 
             ## target DQN model ##
-            self.target_DQN = Model.from_config(self.DQN.get_config())
-            for layer in self.target_DQN.layers:
-                layer.name = layer.name + 'target'
+            self.target_dqn = Model.from_config(self.dqn.get_config())
+            for layer in self.target_dqn.layers:
+                layer.name = layer.name + '_target'
                 layer.trainable = False
             self.UpdateTarget()
 
             ## target state-action Q-value ##
-            terminals = Input((1, ), dtype='float32', name='terminal')
+            terminals = Input((1, ), dtype='float32', name='terminals')
             rewards = Input((1, ), dtype='float32', name='rewards')
-            targetQ_inlist = [terminals, self.target_DQN.output, rewards]
+            targetQ_inlist = [terminals, self.target_dqn.output, rewards]
             targetQ = Lambda(getTargetQ, output_shape=getTargetQ_outshape, name='target-Q')(targetQ_inlist)
 
             ## dqn cost block ##
             cost = Lambda(getDQNCost, output_shape=getDQNCost_outshape, name='dqn-cost')([actQ, targetQ])
 
             ## whole structure ##
-            complete_inputs = complete_inputs + \
-                              self.DQN.input + \
-                              self.target_DQN.input + \
-                              [action_in, terminals, rewards]
-            self.complete_model = Model(input=complete_inputs, output=[cost])
-
-
-
+            train_inputs = self.dqn.inputs + \
+                           self.target_dqn.inputs + \
+                           [action_in, terminals, rewards]
+            print(train_inputs)
+            self.training_model = Model(input=train_inputs, output=[cost])
+            self.training_model.compile(optimizer='rmsprop', loss='mean_squared_error', metrics=['accuracy'])
+            self.training_model._make_train_function()
+            self.training_model._make_predict_function()
+        else:
+            self.training_model = self.dqn
 
         # print(self.model.trainable_weights)
 
@@ -148,17 +152,17 @@ class DQN:
         print('[Model] ready')
 
     def UpdateTarget(self):
-        self.target_DQN.set_weights(self.DQN.get_weights())
+        self.target_dqn.set_weights(self.dqn.get_weights())
 
     def push_label(self, image, label):
         image = cv2.resize(image, (224, 224)).astype(np.uint8)
         image = image.transpose((2, 0, 1))
         self.memory.push(image, label)
 
-    def push_dqn(self, img, action, reward, terminal):
+    def push_dqn(self, image, action, reward, terminal):
         image = cv2.resize(image, (224, 224)).astype(np.uint8)
         image = image.transpose((2, 0, 1))
-        self.memory.push(img, action, reward, terminal)
+        self.memory.push(image, action, reward, terminal)
 
     def train_label(self):
         images, labels = self.memory.sample()
@@ -169,27 +173,39 @@ class DQN:
         y = np.zeros((len(labels), 5), dtype=np.float32)
         for i, label in enumerate(labels):
             y[i][label] = 1.
-        return self.model.train_on_batch(images, y)
+        return self.dqn.train_on_batch(images, y)
 
     def train_dqn(self):
+        ## exprience replay ##
         images, actions, rewards, post_camera, terminals = self.memory.sample()
+        batch_size = len(actions)
+        ## images preprocessing ##
         images = images.astype(np.float32)
+        post_camera = post_camera.astype(np.float32)
         images[:,0,...] -= 103.939
         images[:,1,...] -= 116.779
         images[:,2,...] -= 123.68
-
         post_camera[:,0,...] -= 103.939
         post_camera[:,1,...] -= 116.779
         post_camera[:,2,...] -= 123.68
+        ## actions one-hot encoding ##
+        acts_one_hot = np.zeros((batch_size, 5), dtype='float32')
+        acts_one_hot[np.arange(batch_size), actions] = 1.
+        terminals = np.array(terminals, dtype='float32').reshape((-1,1))
+        rewards = np.array(rewards, dtype='float32').reshape((-1,1))
 
-        targets = self.model.predict_on_batch(images) # get state's actionQs for ref
+        '''targets = self.model.predict_on_batch(images) # get state's actionQs for ref
         actionQs_t1 = self.target_model.predict_on_batch(post_camera) # one step look ahead
 
         ## calc targets ##
         batch_targetQs = (1 - np.array(terminals))*GAMMA*np.max(actionQs_t1, axis=1) + np.array(rewards)
         targets[np.arange(images.shape[0]), actions] = batch_targetQs
 
-        return self.model.train_on_batch(images, targets)
+        return self.model.train_on_batch(images, targets)'''
+
+        train_inputs = [images, post_camera, acts_one_hot, terminals, rewards]
+        train_labels = np.zeros((batch_size, 1), dtype='float32')
+        return self.training_model.train_on_batch(train_inputs, train_labels)
 
     def predict(self, image):
         image = cv2.resize(image, (224, 224)).astype(np.float32)
@@ -198,10 +214,10 @@ class DQN:
         images[1,...] -= 116.779
         images[2,...] -= 123.68
         image = np.expand_dims(image, axis=0)
-        return self.model.predict_on_batch(image)
+        return self.dqn.predict_on_batch(image)
 
     def save_DQN(self):
-        self.DQN.save(DQN_PATH)
+        self.dqn.save(DQN_PATH)
 
     def load_DQN(self):
         return load_model(DQN_PATH)
@@ -211,17 +227,22 @@ class DQN:
 
 if __name__ == '__main__':
     model = DQN(pre_training=True)
+    #model.dqn.summary()
+    #model.training_model.summary()
+    #print(model.training_model.trainable_weights)
     model.push(np.zeros((224, 224, 3)), 1)
     model.push(np.zeros((224, 224, 3)), 2)
     model.push(np.zeros((224, 224, 3)), 3)
     model.train()
-    model.save_model()
+    model.save_DQN()
     model.save_memory()
-    """
+
     model = DQN(pre_training=False)
     model.push(np.zeros((224, 224, 3)), 2, 1, True)
     model.push(np.zeros((224, 224, 3)), 3, 2, False)
     model.push(np.zeros((224, 224, 3)), 3, 2, False)
     model.push(np.zeros((224, 224, 3)), 3, 1, True)
-    model.save()
-    """
+    model.train()
+    model.save_DQN()
+    model.save_memory()
+
