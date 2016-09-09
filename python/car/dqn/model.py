@@ -83,16 +83,16 @@ class DQN:
                 input_merge = input_model_outs[0]
 
             ## construct convolution block3 ##
-            x = Convolution2D(128, 3, 3, activation='relu', border_mode='same', name='block3_conv1')(input_merge)
-            x = Convolution2D(128, 3, 3, activation='relu', border_mode='same', name='block3_conv2')(x)
+            x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block3_conv1')(input_merge)
+            x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block3_conv2')(x)
             x = MaxPooling2D((2, 2), strides=(2, 2), name='block3_pool')(x)
 
             ## construct convolution block4 ##
-            x = Convolution2D(256, 3, 3, activation='relu', border_mode='same', name='block4_conv1')(x)
+            x = Convolution2D(64, 3, 3, activation='relu', border_mode='same', name='block4_conv1')(x)
             x = MaxPooling2D((2, 2), strides=(2, 2), name='block4_pool')(x)
 
             ## construct convolution block5 ##
-            x = Convolution2D(256, 3, 3, activation='relu', border_mode='same', name='block5_conv1')(x)
+            x = Convolution2D(64, 3, 3, activation='relu', border_mode='same', name='block5_conv1')(x)
             x = MaxPooling2D((2, 2), strides=(2, 2), name='block5_pool')(x)
 
             ## Q-values block ##
