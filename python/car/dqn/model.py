@@ -2,6 +2,7 @@ from __future__ import print_function
 from keras.models import load_model, Model
 from keras.layers import Input, Dense, Dropout, Activation, Flatten, merge, Convolution2D, MaxPooling2D, Lambda
 from keras.layers import Convolution2D, MaxPooling2D
+from keras.applications.vgg16 import VGG16
 from keras.optimizers import SGD, RMSprop
 from keras.utils import np_utils
 from memory import ReplayMemory
@@ -11,7 +12,6 @@ import cv2
 import h5py
 
 DQN_PATH = 'car/dqn/dqn_model.h5'
-VGG_PATH = 'car/dqn/vgg_model.h5'
 
 GAMMA = 0.99 # decay rate of future rewards
 
@@ -61,10 +61,10 @@ class DQN:
 
         if not os.path.isfile(DQN_PATH):
             ## load pre-trained vgg16 network ## 
-            vgg = load_model(VGG_PATH)
+            vgg = VGG16(include_top=False, weights='imagenet', input_tensor = Input(shape=(3, 100, 100)))
 
             ## construct parallel input layers from vgg16 ##
-            input_model_template = Model(input=vgg.input, output=vgg.get_layer('maxpooling2d_1').output)
+            input_model_template = Model(input=vgg.input, output=vgg.get_layer('block3_pool').output)
             input_model_outs = []
             input_model_ins = []
             for frame in xrange(self.frame):
@@ -83,24 +83,14 @@ class DQN:
             else:
                 input_merge = input_model_outs[0]
 
-            x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block2_conv1')(input_merge)
-            x = MaxPooling2D((2, 2), strides=(2, 2), name='block2_pool')(x)
-
-            ## construct convolution block3 ##
-            x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block3_conv1')(x)
-            x = MaxPooling2D((2, 2), strides=(2, 2), name='block3_pool')(x)
-
             ## construct convolution block4 ##
-            x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block4_conv1')(x)
+            x = Convolution2D(256, 3, 3, activation='relu', border_mode='same', name='block4_conv1')(input_merge)
+            x = Convolution2D(256, 3, 3, activation='relu', border_mode='same', name='block4_conv2')(x)
             x = MaxPooling2D((2, 2), strides=(2, 2), name='block4_pool')(x)
-
-            ## construct convolution block5 ##
-            x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block5_conv1')(x)
-            x = MaxPooling2D((2, 2), strides=(2, 2), name='block5_pool')(x)
 
             ## Q-values block ##
             x = Flatten(name='flatten')(x)
-            x = Dense(256, activation='relu', name='fc1')(x)
+            x = Dense(1024, activation='relu', name='fc1')(x)
             x = Dropout(0.5, name='dropout1')(x)
             actionQs = Dense(5, name='actionQs')(x)
 
@@ -157,11 +147,11 @@ class DQN:
         self.target_dqn.set_weights(self.dqn.get_weights())
 
     def push_label(self, image, label):
-        image = cv2.resize(image, (224, 224)).astype(np.uint8).transpose((2, 0, 1))
+        image = cv2.resize(image, (100, 100)).astype(np.uint8).transpose((2, 0, 1))
         self.memory.push(image, label)
 
     def push_dqn(self, image, action, reward, terminal):
-        image = cv2.resize(image, (224, 224)).astype(np.uint8).transpose((2, 0, 1))
+        image = cv2.resize(image, (100, 100)).astype(np.uint8).transpose((2, 0, 1))
         self.memory.push(image, action, reward, terminal)
 
     def train_label(self):
@@ -228,7 +218,7 @@ class DQN:
 
     def predict(self, images):
         for frame_idx in range(self.frame):
-            images[frame_idx] = cv2.resize(images[frame_idx], (224, 224)).astype(np.float32).transpose((2, 0, 1))
+            images[frame_idx] = cv2.resize(images[frame_idx], (100, 100)).astype(np.float32).transpose((2, 0, 1))
             images[frame_idx] = images[frame_idx][np.newaxis, :]
             images[frame_idx][:,0,...] -= 103.939
             images[frame_idx][:,1,...] -= 116.779
@@ -252,9 +242,9 @@ if __name__ == '__main__':
     #model.training_model.summary()
     #print(model.training_model.trainable_weights)
     print(1)
-    model.push(np.zeros((224, 224, 3)), 1)
-    model.push(np.zeros((224, 224, 3)), 2)
-    model.push(np.zeros((224, 224, 3)), 3)
+    model.push(np.zeros((100, 100, 3)), 1)
+    model.push(np.zeros((100, 100, 3)), 2)
+    model.push(np.zeros((100, 100, 3)), 3)
     print(2)
     model.train()
     print(3)
@@ -265,10 +255,10 @@ if __name__ == '__main__':
     """
 
     model = DQN(pre_training=False, frame=2)
-    model.push(np.zeros((224, 224, 3)), 3, 4, False)
-    model.push(np.zeros((224, 224, 3)), 3, 4, False)
-    model.push(np.zeros((224, 224, 3)), 3, 4, False)
-    model.push(np.zeros((224, 224, 3)), 3, 4, False)
+    model.push(np.zeros((100, 100, 3)), 3, 4, False)
+    model.push(np.zeros((100, 100, 3)), 3, 4, False)
+    model.push(np.zeros((100, 100, 3)), 3, 4, False)
+    model.push(np.zeros((100, 100, 3)), 3, 4, False)
     model.save_memory()
     for i in range(10):
         model.train()

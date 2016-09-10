@@ -19,15 +19,15 @@ class ReplayMemory:
             self.sample = self.sample_label
             self.filepath = 'car/dqn/memory_label.pickle'
 
-            self._camera = [np.empty((self.batch_size, 3, 224, 224), dtype=np.uint8)] * self.frame
+            self._camera = [np.empty((self.batch_size, 3, 100, 100), dtype=np.uint8)] * self.frame
             self._labels = np.empty((self.batch_size, ), dtype=np.uint8)
         else:
             self.push = self.push_dqn
             self.sample = self.sample_dqn
             self.filepath = 'car/dqn/memory_dqn.pickle'
 
-            self._precamera = [np.empty((self.batch_size, 3, 224, 224), dtype=np.uint8)] * self.frame
-            self._postcamera = [np.empty((self.batch_size, 3, 224, 224), dtype=np.uint8)] * self.frame
+            self._precamera = [np.empty((self.batch_size, 3, 100, 100), dtype=np.uint8)] * self.frame
+            self._postcamera = [np.empty((self.batch_size, 3, 100, 100), dtype=np.uint8)] * self.frame
             self._actions = np.empty((self.batch_size, ), dtype=np.uint8)
             self._rewards = np.empty((self.batch_size, ), dtype=np.float32)
             self._terminals = np.empty((self.batch_size, ), dtype=np.bool)
@@ -94,13 +94,13 @@ class ReplayMemory:
 if __name__ == '__main__':
     memory = ReplayMemory(pre_training=False, frame=2)
     for i in range(32):
-        memory.push(np.ones((3, 224, 224), dtype=np.uint8), 10, 2, False)
+        memory.push(np.ones((3, 100, 100), dtype=np.uint8), 10, 2, False)
     pre_camera, actions, rewards, post_camera, terminals = memory.sample()
     print(terminals)
     memory.save()
     memory1 = ReplayMemory(pre_training=True, frame=2)
     for i in range(32):
-        memory1.push(np.ones((3, 224, 224), dtype=np.uint8), 2)
+        memory1.push(np.ones((3, 100, 100), dtype=np.uint8), 2)
     camera, labels = memory1.sample()
     print(labels)
     memory1.save()
