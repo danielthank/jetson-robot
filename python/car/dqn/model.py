@@ -14,7 +14,6 @@ DQN_PATH = 'car/dqn/dqn_model.h5'
 VGG_PATH = 'car/dqn/vgg_model.h5'
 
 GAMMA = 0.99 # decay rate of future rewards
-TARGET_UPDATE_FREQ = 10000 # frequency of update params of target freezing network
 
 def getActQ(input_list):
     from keras import backend as KB
@@ -49,6 +48,7 @@ class DQN:
     def __init__(self, pre_training, frame):
         self.pre_training = pre_training
         self.frame = frame
+        self.target_update_freq = 100
 
         if self.pre_training:
             self.train = self.train_label
@@ -56,13 +56,15 @@ class DQN:
         else:
             self.train = self.train_dqn
             self.push = self.push_dqn
+            self.train_cnt = 0
+            self.epsilon = 0.1
 
         if not os.path.isfile(DQN_PATH):
             ## load pre-trained vgg16 network ## 
             vgg = load_model(VGG_PATH)
 
             ## construct parallel input layers from vgg16 ##
-            input_model_template = Model(input=vgg.input, output=vgg.get_layer('maxpooling2d_2').output)
+            input_model_template = Model(input=vgg.input, output=vgg.get_layer('maxpooling2d_1').output)
             input_model_outs = []
             input_model_ins = []
             for frame in xrange(self.frame):
@@ -81,9 +83,11 @@ class DQN:
             else:
                 input_merge = input_model_outs[0]
 
+            x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block2_conv1')(input_merge)
+            x = MaxPooling2D((2, 2), strides=(2, 2), name='block2_pool')(x)
+
             ## construct convolution block3 ##
-            x = Convolution2D(64, 3, 3, activation='relu', border_mode='same', name='block3_conv1')(input_merge)
-            x = Convolution2D(64, 3, 3, activation='relu', border_mode='same', name='block3_conv2')(x)
+            x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block3_conv1')(x)
             x = MaxPooling2D((2, 2), strides=(2, 2), name='block3_pool')(x)
 
             ## construct convolution block4 ##
@@ -96,7 +100,7 @@ class DQN:
 
             ## Q-values block ##
             x = Flatten(name='flatten')(x)
-            x = Dense(1024, activation='relu', name='fc1')(x)
+            x = Dense(256, activation='relu', name='fc1')(x)
             x = Dropout(0.5, name='dropout1')(x)
             actionQs = Dense(5, name='actionQs')(x)
 
@@ -147,7 +151,7 @@ class DQN:
         # print(self.training_model.summary())
 
         self.memory = ReplayMemory(self.pre_training, self.frame)
-        print('[Model] ready')
+        print('[Model] ready', end='\r\n')
 
     def UpdateTarget(self):
         self.target_dqn.set_weights(self.dqn.get_weights())
@@ -176,6 +180,14 @@ class DQN:
         return self.dqn.train_on_batch(images, y)
 
     def train_dqn(self):
+        self.train_cnt += 1
+        if self.memory.count < self.frame + 1:
+            return None
+
+        if self.train_cnt == self.target_update_freq:
+            self.TaretUpdate()
+            self.train_cnt = 0
+
         ## exprience replay ##
         precamera, actions, rewards, postcamera, terminals = self.memory.sample()
         # print(actions, rewards, terminals)
@@ -211,6 +223,7 @@ class DQN:
 
         train_inputs = precamera + postcamera + [acts_one_hot] + [terminals] + [rewards]
         train_labels = np.zeros((batch_size, 1), dtype='float32')
+        # print('training')
         return self.training_model.train_on_batch(train_inputs, train_labels)
 
     def predict(self, images):

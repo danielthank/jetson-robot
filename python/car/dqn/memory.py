@@ -12,7 +12,7 @@ class ReplayMemory:
         self.pre_training = pre_training
         self.frame = frame
         self.memory_size = 1000
-        self.batch_size = 8
+        self.batch_size = 4
 
         if self.pre_training:
             self.push = self.push_label
