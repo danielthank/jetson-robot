@@ -2,7 +2,7 @@ from blacklane import BlackLaneDetector
 from dqn.model import DQN
 
 class Car:
-    def __init__(self, arduino, pre_training=True):
+    def __init__(self, arduino, pre_training=True, frame=2):
         self.ROTATE_SPEED = 20
         self.BASE_SPEED = 20
         self.MAX_SPEED = 90
@@ -15,7 +15,7 @@ class Car:
         self.rSpeed = 0
         self.lSpeed = 0
         self.gamma = 0.5
-        self.model = DQN(pre_training=pre_training)
+        self.model = DQN(pre_training=pre_training, frame=frame)
         self.detector = BlackLaneDetector() 
 
     def action(self, idx) :

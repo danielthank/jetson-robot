@@ -1,55 +1,55 @@
+from __future__ import print_function
 import os
 import random
 import numpy as np
 import h5py
+import cPickle as pickle
+
+from Queue import Queue
 
 class ReplayMemory:
-    def __init__(self, pre_training):
+    def __init__(self, pre_training, frame):
         self.pre_training = pre_training
+        self.frame = frame
         self.memory_size = 1000
         self.batch_size = 8
 
         if self.pre_training:
             self.push = self.push_label
             self.sample = self.sample_label
-            self.load = self.load_label
-            self.save = self.save_label
-            self._camera = np.empty((self.batch_size, 3, 224, 224), dtype=np.uint8)
-            self.filepath = 'car/dqn/memory_label.h5'
+            self.filepath = 'car/dqn/memory_label.pickle'
+
+            self._camera = [np.empty((self.batch_size, 3, 224, 224), dtype=np.uint8)] * self.frame
+            self._labels = np.empty((self.batch_size, ), dtype=np.uint8)
         else:
             self.push = self.push_dqn
             self.sample = self.sample_dqn
-            self.load = self.load_dqn
-            self.save = self.save_dqn
-            self._pre_camera = np.empty((self.batch_size, 3, 224, 224), dtype=np.uint8)
-            self._post_camera = np.empty((self.batch_size, 3, 224, 224), dtype=np.uint8)
-            self.filepath = 'car/dqn/memory_dqn.h5'
+            self.filepath = 'car/dqn/memory_dqn.pickle'
+
+            self._precamera = [np.empty((self.batch_size, 3, 224, 224), dtype=np.uint8)] * self.frame
+            self._postcamera = [np.empty((self.batch_size, 3, 224, 224), dtype=np.uint8)] * self.frame
+            self._actions = np.empty((self.batch_size, ), dtype=np.uint8)
+            self._rewards = np.empty((self.batch_size, ), dtype=np.float32)
+            self._terminals = np.empty((self.batch_size, ), dtype=np.bool)
+
 
         if os.path.isfile(self.filepath):
+            # print('tfjksdkfhsdf')
             self.load()
         else:
-            self.camera_inputs = np.empty((self.memory_size, 3, 224, 224), dtype = np.uint8)
-            self.count = 0
-            self.current = 0
-            if self.pre_training:
-                self.labels = np.empty(self.memory_size, dtype=np.uint8)
-            else:
-                self.actions = np.empty(self.memory_size, dtype=np.uint8)
-                self.rewards = np.empty(self.memory_size, dtype=np.float32)
-                self.terminals = np.empty(self.memory_size, dtype=np.bool)
+            self.q = []
+            self.current, self.count = 0, 0
         print('[Memory] Ready')
 
     def push_label(self, camera_input, label):
-        self.camera_inputs[self.current, ...] = camera_input
-        self.labels[self.current] = label
+        self.q.append([camera_input, label])
+
         self.count = max(self.count, self.current + 1)
         self.current = (self.current + 1) % self.memory_size
 
     def push_dqn(self, camera_input, reward, action, terminal):
-        self.actions[self.current] = action
-        self.rewards[self.current] = reward
-        self.camera_inputs[self.current, ...] = camera_input
-        self.terminals[self.current] = terminal
+        self.q.append([camera_input, reward, action, terminal])
+
         self.count = max(self.count, self.current + 1)
         self.current = (self.current + 1) % self.memory_size
 
@@ -57,79 +57,48 @@ class ReplayMemory:
         self.count, self.current = 0, 0
 
     def sample_label(self):
-        indexes = []
-        while len(indexes) < self.batch_size:
-            index = random.randint(0, self.count-1)
+        for batch_idx in range(self.batch_size):
+            rand_idx = random.randint(0, self.count - self.frame)
+            for frame_idx in range(self.frame):
+                self._camera[frame_idx][batch_idx, ...] = self.q[rand_idx + frame_idx][0]
+            self._labels[batch_idx] = self.q[rand_idx + self.frame - 1][1]
 
-            self._camera[len(indexes), ...] = self.camera_inputs[index]
-            indexes.append(index)
-
-        labels = self.labels[indexes]
-
-        return self._camera, labels
+        return self._camera, self._labels
 
     def sample_dqn(self):
-        indexes = []
-        while len(indexes) < self.batch_size:
-            index = random.randint(0, self.count-1)
-            while index == self.current - 1 or self.terminals[index]:
-                index = random.randint(0, self.count-1)
+        for batch_idx in range(self.batch_size):
+            while True:
+                rand_idx = random.randint(0, self.count - self.frame - 1)
+                for z in range(self.frame):
+                    if self.q[rand_idx + z][3]:
+                        break
+                if z == self.frame - 1:
+                    break
+            for frame_idx in range(self.frame):
+                self._precamera[frame_idx][batch_idx, ...] = self.q[rand_idx + frame_idx][0]
+                self._postcamera[frame_idx][batch_idx, ...] = self.q[rand_idx + frame_idx + 1][0]
+            self._actions[batch_idx] = self.q[rand_idx + self.frame][1]
+            self._rewards[batch_idx] = self.q[rand_idx + self.frame][2]
+            self._terminals[batch_idx] = self.q[rand_idx + self.frame][3]
 
-            self._pre_camera[len(indexes), ...] = self.camera_inputs[index]
-            if index == self.memory_size - 1:
-                self._post_camera[len(indexes), ...] = self.camera_inputs[0]
-            else:
-                self._post_camera[len(indexes), ...] = self.camera_inputs[index+1]
-            indexes.append(index)
+        return self._precamera, self._actions, self._rewards, self._postcamera, self._terminals
 
-        actions = self.actions[indexes]
-        rewards = self.rewards[indexes]
-        terminals = self.terminals[indexes]
+    def save(self):
+        pickle.dump([self.q[0: self.count], self.current], open(self.filepath, 'wb'))
 
-        return self._pre_camera, actions, rewards, self._post_camera, terminals
-
-    def save_label(self):
-        f = h5py.File(self.filepath, 'w')
-        f.attrs['count'] = self.count
-        f.attrs['current'] = self.current
-        for (name, array) in zip(['camera_inputs', 'labels'],
-            [self.camera_inputs, self.labels]):
-            dset = f.create_dataset(name, array.shape, dtype=array.dtype)
-            dset[...] = array
-
-    def save_dqn(self):
-        f = h5py.File(self.filepath, 'w')
-        f.attrs['count'] = self.count
-        f.attrs['current'] = self.current
-        for (name, array) in zip(['actions', 'rewards', 'camera_inputs', 'terminals'],
-            [self.actions, self.rewards, self.camera_inputs, self.terminals]):
-            dset = f.create_dataset(name, array.shape, dtype=array.dtype)
-            dset[...] = array
-
-    def load_label(self):
-        f = h5py.File(self.filepath, 'r')
-        self.camera_inputs = f['camera_inputs'][...]
-        self.labels = f['labels'][...]
-        self.count = f.attrs['count']
-        self.current = f.attrs['current']
-
-    def load_dqn(self):
-        f = h5py.File(self.filepath, 'r')
-        self.actions = f['actions'][...]
-        self.rewards = f['rewards'][...]
-        self.camera_inputs = f['camera_inputs'][...]
-        self.terminals = f['terminals'][...]
-        self.count = f.attrs['count']
-        self.current = f.attrs['current']
+    def load(self):
+        self.q, self.current = pickle.load(open(self.filepath, 'rb'))
+        self.count = len(self.q)
+        # print(self.q, self.current, self.count)
 
 if __name__ == '__main__':
-    memory = ReplayMemory(pre_training=False)
+    memory = ReplayMemory(pre_training=False, frame=2)
     for i in range(32):
-        memory.push(np.ones((3, 224, 224), dtype=np.uint8), 10, 2, True)
+        memory.push(np.ones((3, 224, 224), dtype=np.uint8), 10, 2, False)
     pre_camera, actions, rewards, post_camera, terminals = memory.sample()
     print(terminals)
     memory.save()
-    memory1 = ReplayMemory(pre_training=True)
+    memory1 = ReplayMemory(pre_training=True, frame=2)
     for i in range(32):
         memory1.push(np.ones((3, 224, 224), dtype=np.uint8), 2)
     camera, labels = memory1.sample()

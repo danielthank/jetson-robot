@@ -8,7 +8,8 @@ import numpy as np
 
 class Arduino():
     def __init__(self):
-        # Thread.__init__(self)
+        pass
+        """
         candidates = ['/dev/ttyACM0', '/dev/ttyACM1', '/dev/cu.usbmodem14231']
         for candidate in candidates:
             try:
@@ -18,28 +19,40 @@ class Arduino():
             else:
                 break
         # print(self.dev)
-        # self.q = Queue(maxsize=10)
-        # self.dev.setDTR(False)
         sleep(3)
         self.dev.flushInput()
-        # self.sleeping = False
         print("[Arduino] ready")
+        """
 
     def write(self, command):
+        pass
+        """
         self.dev.write(command)
+        """
 
     def read(self, cnt):
+        return None
+        """
         return self.dev.read(cnt)
+        """
 
     def readline(self):
+        return None
+        """
         return self.dev.readline()
+        """
 
     def request(self, command):
+        return None
+        """
         self.write(command)
         ret = self.readline()
         print('[Arduino] ' +  command[:-1] + ' ' + ret[:-1])
         return ret
+        """
 
     def terminate(self):
+        return
+        """
         self.write('s 0,0\n')
-        # self.write('q\n')
+        """
