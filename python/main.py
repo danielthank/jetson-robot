@@ -74,22 +74,27 @@ def curses_main(stdscr):
                 except:
                     key = None
                 if key == 'KEY_UP':
+                    main.car.action(0)
                     main.car.model.push(preimg, 0)
                     main.car.model.push(nowimg, 0)
                     stdscr.addstr('[Train] ' + str(main.car.model.train()) + '\n')
                 elif key == 'KEY_DOWN':
+                    main.car.action(1)
                     main.car.model.push(preimg, 1)
                     main.car.model.push(nowimg, 1)
                     stdscr.addstr('[Train] ' + str(main.car.model.train()) + '\n')
                 elif key == 'KEY_LEFT':
+                    main.car.action(2)
                     main.car.model.push(preimg, 2)
                     main.car.model.push(nowimg, 2)
                     stdscr.addstr('[Train] ' + str(main.car.model.train()) + '\n')
                 elif key == 'KEY_RIGHT':
+                    main.car.action(3)
                     main.car.model.push(preimg, 3)
                     main.car.model.push(nowimg, 3)
                     stdscr.addstr('[Train] ' + str(main.car.model.train()) + '\n')
                 elif key == ' ':
+                    main.car.action(4)
                     main.car.model.push(preimg, 4)
                     main.car.model.push(nowimg, 4)
                     stdscr.addstr('[Train] ' + str(main.car.model.train()) + '\n')
@@ -133,6 +138,7 @@ def curses_main(stdscr):
                     stdscr.addstr('[Predict] ' + str(ret) + '\n')
                     stdscr.addstr('[Action(Predict)] ' + str(action) + '\n')
 
+                main.car.action(action)
                 ir = main.arduino.request('i\n')
                 reward = 0
                 if ir != '00':

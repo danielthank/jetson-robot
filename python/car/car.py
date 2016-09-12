@@ -19,7 +19,7 @@ class Car:
         self.detector = BlackLaneDetector() 
 
     def action(self, idx) :
-        funcs = [self.forward, self.backward, self.right, self.left, self.stop]
+        funcs = [self.forward, self.backward, self.left, self.right, self.stop]
         if idx < len(funcs):
             return funcs[idx]()
         return 'fail'
