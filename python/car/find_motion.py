@@ -88,7 +88,7 @@ class FindMotion:
 
         return min_cost,cord
 
-    def GetFeatureShape():
+    def GetFeatureShape(self):
         self.feature.shape
 
     def BlockMatching(self):

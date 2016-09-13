@@ -102,7 +102,7 @@ def curses_main(stdscr):
                     break
                 elif key == None:
                     # ir = main.arduino.request('i\n')
-                    prob = main.car.model.predict([preimg, nowimg])[0]
+                    prob = main.car.model.predict([preimg, nowimg, main.car.motion.GetFeature()])[0]
                     stdscr.addstr('[Predict] ' + str(prob) + '\n')
                     main.car.action(np.argmax(prob))
                     """
