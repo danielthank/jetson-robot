@@ -11,7 +11,7 @@ import os
 import cv2
 import h5py
 
-DQN_PATH = 'car/dqn/dqn_model.h5'
+DQN_PATH = 'dqn_model.h5'
 
 GAMMA = 0.5 # decay rate of future rewards
 
@@ -100,16 +100,15 @@ class DQN:
 
             motion_input = Input(shape=motion_shape)
             input_model_ins.append(motion_input)
-            y = Convolution2D(32, 3, 3, activation='relu', border_model='same', name='motion_conv1')(motion_input)
-            y = Convolution2D(32, 3, 3, activation='relu', border_model='same', name='motion_conv2')(y)
-            y = MaxPooling2D((2, 2), strides=(2, 2), name='motion_pool')
+            y = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='motion_conv1')(motion_input)
+            y = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='motion_conv2')(y)
+            y = MaxPooling2D((2, 2), strides=(2, 2), name='motion_pool')(y)
             y = Flatten(name='motion_flatten')(y)
 
-            merge = Merge([x, y], mode='concat', concat_axis=1, name='merge_camera_motion')
+            merge_xy = merge([x, y], mode='concat', concat_axis=1, name='merge_camera_motion')
 
             ## Q-values block ##
-            x = Flatten(name='flatten')(x)
-            x = Dense(1024, activation='relu', name='fc1')(x)
+            x = Dense(1024, activation='relu', name='fc1')(merge_xy)
             x = Dropout(0.5, name='dropout1')(x)
             actionQs = Dense(5, activation='softmax', name='actionQs')(x)
 
@@ -186,7 +185,7 @@ class DQN:
         y = np.zeros((batch_size, 5), dtype=np.float32)
         for i, label in enumerate(labels):
             y[i][label] = 1.
-        return self.dqn.train_on_batch(images, y)
+        return self.dqn.train_on_batch(images + [np.zeros((4, 2, 10, 10))], y)
 
     def train_dqn(self):
         self.train_cnt += 1
@@ -273,11 +272,12 @@ if __name__ == '__main__':
     print(5)
     """
 
-    model = DQN(pre_training=False, frame=2)
-    model.push(np.zeros((100, 100, 3)), 3, 4, False)
-    model.push(np.zeros((100, 100, 3)), 3, 4, False)
-    model.push(np.zeros((100, 100, 3)), 3, 4, False)
-    model.push(np.zeros((100, 100, 3)), 3, 4, False)
+    model = DQN(pre_training=True, frame=2, motion_shape=(2, 10, 10))
+    print(model.dqn.summary())
+    model.push(np.zeros((100, 100, 3)), 1)
+    model.push(np.zeros((100, 100, 3)), 2)
+    model.push(np.zeros((100, 100, 3)), 3)
+    model.push(np.zeros((100, 100, 3)), 4)
     model.save_memory()
     for i in range(10):
         model.train()
