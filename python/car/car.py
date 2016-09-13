@@ -4,8 +4,8 @@ from dqn.model import DQN
 
 class Car:
     def __init__(self, arduino, pre_training=True, frame=2):
-        self.ROTATE_SPEED = 20
-        self.BASE_SPEED = 20
+        self.ROTATE_SPEED = 10
+        self.BASE_SPEED = 10
         self.MAX_SPEED = 90
         self.arduino = arduino
         self.lastAngle = 0

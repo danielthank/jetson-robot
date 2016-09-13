@@ -113,7 +113,11 @@ def curses_main(stdscr):
         else:
             nowimg = main.vs.read()
             start = time()
+            terminal = False
+            explore = True
+            action = 4
             while True:
+                stdscr.refresh()
                 end = time()
                 stdscr.addstr('[Time] ' + str(end-start) + '\n')
                 start = end
@@ -121,33 +125,48 @@ def curses_main(stdscr):
                     key = stdscr.getkey()
                 except:
                     key = None
-                if key == 'q':
+
+                action = None
+                if key == 'KEY_UP':
+                    action = 0
+                elif key == 'KEY_DOWN':
+                    action = 1
+                elif key == 'KEY_LEFT':
+                    action = 2
+                elif key == 'KEY_RIGHT':
+                    action = 3
+                elif key == ' ':
+                    terminal = not terminal
+                    if terminal:
+                        main.car.action(4)
+                elif key == 'q':
                     break
 
-                stdscr.refresh()
+                if terminal:
+                    continue
+
                 preimg = nowimg
                 nowimg = main.vs.read()
 
-                rand = random.random()
-                if rand < main.car.model.epsilon:
-                    action = random.randint(0, 4)
-                    stdscr.addstr('[Action(Rand)] ' + str(action) + '\n')
-                else:
+                if action == None:
                     ret = main.car.model.predict([preimg, nowimg])
                     action = np.argmax(ret[0])
                     stdscr.addstr('[Predict] ' + str(ret) + '\n')
-                    stdscr.addstr('[Action(Predict)] ' + str(action) + '\n')
 
                 main.car.action(action)
                 ir = main.arduino.request('i\n')
                 reward = 0
-                if ir != '00':
+                """
+                if ir == '1\n':
                     reward += -10
+                """
                 if action == 0:
                     reward += 1
+                elif action == 1 or action == 4:
+                    reward -= 1
                 stdscr.addstr('[Reward] ' + str(reward) + '\n')
 
-                main.car.model.push(nowimg, action, reward, False)
+                main.car.model.push(nowimg, action, reward, terminal)
                 ret = main.car.model.train()
                 if ret != None:
                     stdscr.addstr('[Train] ' + str(ret) + '\n')

@@ -13,7 +13,7 @@ import h5py
 
 DQN_PATH = 'car/dqn/dqn_model.h5'
 
-GAMMA = 0.99 # decay rate of future rewards
+GAMMA = 0.5 # decay rate of future rewards
 
 def getActQ(input_list):
     from keras import backend as KB
@@ -48,7 +48,7 @@ class DQN:
     def __init__(self, pre_training, frame, motion_shape):
         self.pre_training = pre_training
         self.frame = frame
-        self.target_update_freq = 100
+        self.target_update_freq = 5
 
         if self.pre_training:
             self.train = self.train_label
@@ -61,21 +61,27 @@ class DQN:
 
         if not os.path.isfile(DQN_PATH):
             ## load pre-trained vgg16 network ## 
-            vgg = VGG16(include_top=False, weights='imagenet', input_tensor = Input(shape=(3, 100, 100)))
+            # vgg = VGG16(include_top=False, weights='imagenet', input_tensor = Input(shape=(3, 100, 100)))
 
             ## construct parallel input layers from vgg16 ##
-            input_model_template = Model(input=vgg.input, output=vgg.get_layer('block3_pool').output)
+            input_tensor = Input(shape=(3, 100, 100))
+            x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block1_conv1')(input_tensor)
+            x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block1_conv2')(x)
+            x = MaxPooling2D((2, 2), strides=(2, 2), name='block1_pool')(x)
+            x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block2_conv1')(x)
+            x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block2_conv2')(x)
+            x = MaxPooling2D((2, 2), strides=(2, 2), name='block2_pool')(x)
+            input_model_template = Model(input=input_tensor, output=x)
             input_model_outs = []
             input_model_ins = []
             for frame in xrange(self.frame):
                 input_model = Model.from_config(input_model_template.get_config())
-                input_model.set_weights(input_model_template.get_weights())
+                # input_model.set_weights(input_model_template.get_weights())
                 for layer in input_model.layers:
                     if frame == 0:
                         layer.name = layer.name + '_t'
                     else:
                         layer.name = layer.name + '_tm'+str(frame)
-                    layer.trainable = False
                 input_model_ins.append(input_model.input)
                 input_model_outs.append(input_model.output)
             if self.frame > 1:
@@ -84,8 +90,11 @@ class DQN:
                 input_merge = input_model_outs[0]
 
             ## construct convolution block4 ##
-            x = Convolution2D(256, 3, 3, activation='relu', border_mode='same', name='block4_conv1')(input_merge)
-            x = Convolution2D(256, 3, 3, activation='relu', border_mode='same', name='block4_conv2')(x)
+            x = Convolution2D(64, 3, 3, activation='relu', border_mode='same', name='block3_conv1')(input_merge)
+            x = Convolution2D(64, 3, 3, activation='relu', border_mode='same', name='block3_conv2')(x)
+            x = MaxPooling2D((2, 2), strides=(2, 2), name='block3_pool')(x)
+            x = Convolution2D(128, 3, 3, activation='relu', border_mode='same', name='block4_conv1')(x)
+            x = Convolution2D(128, 3, 3, activation='relu', border_mode='same', name='block4_conv2')(x)
             x = MaxPooling2D((2, 2), strides=(2, 2), name='block4_pool')(x)
             x = Flatten(name='camera_flatten')(x)
 
@@ -99,9 +108,10 @@ class DQN:
             merge = Merge([x, y], mode='concat', concat_axis=1, name='merge_camera_motion')
 
             ## Q-values block ##
-            merge = Dense(1024, activation='relu', name='fc1')(merge)
-            merge = Dropout(0.5, name='dropout1')(x)
-            actionQs = Dense(5, name='actionQs')(x)
+            x = Flatten(name='flatten')(x)
+            x = Dense(1024, activation='relu', name='fc1')(x)
+            x = Dropout(0.5, name='dropout1')(x)
+            actionQs = Dense(5, activation='softmax', name='actionQs')(x)
 
             ## DQN model ##
             dqn = Model(input=input_model_ins, output=[actionQs])
@@ -109,8 +119,8 @@ class DQN:
         else:
             self.dqn = self.load_dqn()
 
-        rms = RMSprop(lr=0.001)
-        self.dqn.compile(optimizer=rms, loss='mean_squared_error', metrics=['accuracy'])
+        rms = RMSprop(lr=0.0001, clipnorm=1.)
+        self.dqn.compile(optimizer=rms, loss='categorical_crossentropy', metrics=['accuracy'])
         self.save_dqn()
 
         ## build training model ##
@@ -175,7 +185,7 @@ class DQN:
             images[frame_idx][:,2,...] -= 123.68
         y = np.zeros((batch_size, 5), dtype=np.float32)
         for i, label in enumerate(labels):
-            y[i][label] = 100.
+            y[i][label] = 1.
         return self.dqn.train_on_batch(images, y)
 
     def train_dqn(self):
@@ -184,7 +194,7 @@ class DQN:
             return None
 
         if self.train_cnt == self.target_update_freq:
-            self.TaretUpdate()
+            self.UpdateTarget()
             self.train_cnt = 0
 
         ## exprience replay ##
