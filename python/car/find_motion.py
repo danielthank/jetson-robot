@@ -89,7 +89,7 @@ class FindMotion:
         return min_cost,cord
 
     def GetFeatureShape(self):
-        self.feature.shape
+        return self.feature.shape
 
     def BlockMatching(self):
         block_iter = itertools.product(),
@@ -107,7 +107,6 @@ class FindMotion:
         return self.feature
 
     def GetFeature(self, pre, now):
-        print pre
         pre = cv2.resize(pre, self.IMG_SIZE)
         pre = cv2.cvtColor(pre, cv2.COLOR_BGR2GRAY)
         pre = cv2.blur(pre, (3, 3))

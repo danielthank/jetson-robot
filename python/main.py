@@ -17,13 +17,8 @@ from arduino import Arduino
 
 class Main:
     def __init__(self, argv):
-        if argv[1] == '0':
-            self.pre_training = False
-        else:
-            self.pre_training = True
-            self.epsilon = 0.1
         self.arduino = Arduino()
-        self.car = Car(self.arduino, self.pre_training, 2)
+        self.car = Car(self.arduino)
         self.vs = VideoStream(src=0).start()
 
     def __enter__(self):
@@ -59,116 +54,57 @@ def curses_main(stdscr):
         fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
         main.video = cv2.VideoWriter('test.mp4',fourcc,20,IMG_SIZE)
         """
-        if main.pre_training:
+        nowimg = main.vs.read()
+        nowimg = cv2.resize(nowimg, (100, 100))
+        start = time()
+        while True:
+            end = time()
+            stdscr.addstr('[Time] ' + str(end-start) + '\n')
+            start = end
+            preimg = nowimg
             nowimg = main.vs.read()
-            start = time()
-            while True:
-                end = time()
-                stdscr.addstr('[Time] ' + str(end-start) + '\n')
-                start = end
-                preimg = nowimg
-                nowimg = main.vs.read()
-                # main.video.write(img)
-                try:
-                    key = stdscr.getkey()
-                except:
-                    key = None
-                if key == 'KEY_UP':
-                    main.car.action(0)
-                    main.car.model.push(preimg, 0)
-                    main.car.model.push(nowimg, 0)
-                    stdscr.addstr('[Train] ' + str(main.car.model.train()) + '\n')
-                elif key == 'KEY_DOWN':
-                    main.car.action(1)
-                    main.car.model.push(preimg, 1)
-                    main.car.model.push(nowimg, 1)
-                    stdscr.addstr('[Train] ' + str(main.car.model.train()) + '\n')
-                elif key == 'KEY_LEFT':
-                    main.car.action(2)
-                    main.car.model.push(preimg, 2)
-                    main.car.model.push(nowimg, 2)
-                    stdscr.addstr('[Train] ' + str(main.car.model.train()) + '\n')
-                elif key == 'KEY_RIGHT':
-                    main.car.action(3)
-                    main.car.model.push(preimg, 3)
-                    main.car.model.push(nowimg, 3)
-                    stdscr.addstr('[Train] ' + str(main.car.model.train()) + '\n')
-                elif key == ' ':
-                    main.car.action(4)
-                    main.car.model.push(preimg, 4)
-                    main.car.model.push(nowimg, 4)
-                    stdscr.addstr('[Train] ' + str(main.car.model.train()) + '\n')
-                elif key == 'q':
-                    break
-                elif key == None:
-                    # ir = main.arduino.request('i\n')
-                    prob = main.car.model.predict([preimg, nowimg, main.car.motion.GetFeature()])[0]
-                    stdscr.addstr('[Predict] ' + str(prob) + '\n')
-                    main.car.action(np.argmax(prob))
-                    """
-                    cv2.imshow('test', img)
-                    if cv2.waitKey(50)  == ord('q'):
-                        break
-                    """
-        else:
-            nowimg = main.vs.read()
-            start = time()
-            terminal = False
-            explore = True
-            action = 4
-            while True:
-                stdscr.refresh()
-                end = time()
-                stdscr.addstr('[Time] ' + str(end-start) + '\n')
-                start = end
-                try:
-                    key = stdscr.getkey()
-                except:
-                    key = None
-
-                action = None
-                if key == 'KEY_UP':
-                    action = 0
-                elif key == 'KEY_DOWN':
-                    action = 1
-                elif key == 'KEY_LEFT':
-                    action = 2
-                elif key == 'KEY_RIGHT':
-                    action = 3
-                elif key == ' ':
-                    terminal = not terminal
-                    if terminal:
-                        main.car.action(4)
-                elif key == 'q':
-                    break
-
-                if terminal:
-                    continue
-
-                preimg = nowimg
-                nowimg = main.vs.read()
-
-                if action == None:
-                    ret = main.car.model.predict([preimg, nowimg])
-                    action = np.argmax(ret[0])
-                    stdscr.addstr('[Predict] ' + str(ret) + '\n')
-
-                main.car.action(action)
-                ir = main.arduino.request('i\n')
-                reward = 0
+            nowimg = cv2.resize(nowimg, (100, 100))
+            # main.video.write(img)
+            try:
+                key = stdscr.getkey()
+            except:
+                key = None
+            if key == 'KEY_UP':
+                main.car.action(0)
+                motion_feature = main.car.motion.GetFeature(preimg, nowimg)
+                main.car.model.push([preimg, nowimg, motion_feature, 0])
+                stdscr.addstr('[Train] ' + str(main.car.model.train()) + '\n')
+            elif key == 'KEY_DOWN':
+                main.car.action(1)
+                motion_feature = main.car.motion.GetFeature(preimg, nowimg)
+                main.car.model.push([preimg, nowimg, motion_feature, 1])
+                stdscr.addstr('[Train] ' + str(main.car.model.train()) + '\n')
+            elif key == 'KEY_LEFT':
+                main.car.action(2)
+                motion_feature = main.car.motion.GetFeature(preimg, nowimg)
+                main.car.model.push([preimg, nowimg, motion_feature, 2])
+                stdscr.addstr('[Train] ' + str(main.car.model.train()) + '\n')
+            elif key == 'KEY_RIGHT':
+                main.car.action(3)
+                motion_feature = main.car.motion.GetFeature(preimg, nowimg)
+                main.car.model.push([preimg, nowimg, motion_feature, 3])
+                stdscr.addstr('[Train] ' + str(main.car.model.train()) + '\n')
+            elif key == ' ':
+                main.car.action(4)
+                motion_feature = main.car.motion.GetFeature(preimg, nowimg)
+                main.car.model.push([preimg, nowimg, motion_feature, 4])
+                stdscr.addstr('[Train] ' + str(main.car.model.train()) + '\n')
+            elif key == 'q':
+                break
+            elif key == None:
+                # ir = main.arduino.request('i\n')
+                prob = main.car.model.predict([preimg, nowimg, main.car.motion.GetFeature(preimg, nowimg)])[0]
+                stdscr.addstr('[Predict] ' + str(prob) + '\n')
+                main.car.action(np.argmax(prob))
                 """
-                if ir == '1\n':
-                    reward += -10
+                cv2.imshow('test', img)
+                if cv2.waitKey(50)  == ord('q'):
+                    break
                 """
-                if action == 0:
-                    reward += 1
-                elif action == 1 or action == 4:
-                    reward -= 1
-                stdscr.addstr('[Reward] ' + str(reward) + '\n')
-
-                main.car.model.push(nowimg, action, reward, terminal)
-                ret = main.car.model.train()
-                if ret != None:
-                    stdscr.addstr('[Train] ' + str(ret) + '\n')
 
 curses.wrapper(curses_main)

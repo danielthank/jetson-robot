@@ -3,7 +3,7 @@ from find_motion import FindMotion
 from dqn.model import DQN
 
 class Car:
-    def __init__(self, arduino, pre_training=True, frame=2):
+    def __init__(self, arduino):
         self.ROTATE_SPEED = 10
         self.BASE_SPEED = 10
         self.MAX_SPEED = 90
@@ -18,7 +18,7 @@ class Car:
         self.gamma = 0.5
         self.detector = BlackLaneDetector()
         self.motion = FindMotion()
-        self.model = DQN(pre_training=pre_training, frame=frame, motion_shape=self.motion.GetFeatureShape())
+        self.model = DQN(camera_shape=(3, 100, 100), motion_shape=self.motion.GetFeatureShape())
 
     def action(self, idx) :
         funcs = [self.forward, self.backward, self.left, self.right, self.stop]
