@@ -1,4 +1,5 @@
 from blacklane import BlackLaneDetector
+from find_motion import FindMotion
 from dqn.model import DQN
 
 class Car:
@@ -15,8 +16,9 @@ class Car:
         self.rSpeed = 0
         self.lSpeed = 0
         self.gamma = 0.5
-        self.model = DQN(pre_training=pre_training, frame=frame)
-        self.detector = BlackLaneDetector() 
+        self.detector = BlackLaneDetector()
+        self.motion = FindMotion()
+        self.model = DQN(pre_training=pre_training, frame=frame, motion_shape=self.motion.GetFeatureShape())
 
     def action(self, idx) :
         funcs = [self.forward, self.backward, self.left, self.right, self.stop]

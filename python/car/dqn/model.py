@@ -45,7 +45,7 @@ def getDQNCost_outshape(input_shapes):
 
 
 class DQN:
-    def __init__(self, pre_training, frame):
+    def __init__(self, pre_training, frame, motion_shape):
         self.pre_training = pre_training
         self.frame = frame
         self.target_update_freq = 100
@@ -87,11 +87,20 @@ class DQN:
             x = Convolution2D(256, 3, 3, activation='relu', border_mode='same', name='block4_conv1')(input_merge)
             x = Convolution2D(256, 3, 3, activation='relu', border_mode='same', name='block4_conv2')(x)
             x = MaxPooling2D((2, 2), strides=(2, 2), name='block4_pool')(x)
+            x = Flatten(name='camera_flatten')(x)
+
+            motion_input = Input(shape=motion_shape)
+            input_model_ins.append(motion_input)
+            y = Convolution2D(32, 3, 3, activation='relu', border_model='same', name='motion_conv1')(motion_input)
+            y = Convolution2D(32, 3, 3, activation='relu', border_model='same', name='motion_conv2')(y)
+            y = MaxPooling2D((2, 2), strides=(2, 2), name='motion_pool')
+            y = Flatten(name='motion_flatten')(y)
+
+            merge = Merge([x, y], mode='concat', concat_axis=1, name='merge_camera_motion')
 
             ## Q-values block ##
-            x = Flatten(name='flatten')(x)
-            x = Dense(1024, activation='relu', name='fc1')(x)
-            x = Dropout(0.5, name='dropout1')(x)
+            merge = Dense(1024, activation='relu', name='fc1')(merge)
+            merge = Dropout(0.5, name='dropout1')(x)
             actionQs = Dense(5, name='actionQs')(x)
 
             ## DQN model ##
