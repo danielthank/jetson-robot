@@ -24,25 +24,20 @@ class DQN:
             # vgg = VGG16(include_top=False, weights='imagenet', input_tensor = Input(shape=(3, 100, 100)))
 
             ## construct parallel input layers from vgg16 ##
-            input_tensor = Input(shape=camera_shape)
-            x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block1_conv1')(input_tensor)
-            x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block1_conv2')(x)
-            x = MaxPooling2D((2, 2), strides=(2, 2), name='block1_pool')(x)
-            x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block2_conv1')(x)
-            x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block2_conv2')(x)
-            x = MaxPooling2D((2, 2), strides=(2, 2), name='block2_pool')(x)
-            input_model_template = Model(input=input_tensor, output=x)
-            input_model_outs = []
             input_model_ins = []
+            input_model_outs = []
             for frame in xrange(2):
-                input_model = Model.from_config(input_model_template.get_config())
-                for layer in input_model.layers:
-                    layer.name = layer.name + '_tm'+str(frame)
-                input_model_ins.append(input_model.input)
-                input_model_outs.append(input_model.output)
-            input_merge = merge(input_model_outs, mode='concat', concat_axis=1, name='input_merge')
+                suffix = '_t' if frame == 0 else '_tm'+str(frame)
+                input_tensor, output_tensor = self.createInputBlock(suffix)
+                input_model_ins.append(input_tensor)
+                input_model_outs.append(output_tensor)
+            
+            if len(input_model_outs) == 1:
+                input_merge = input_model_outs[0]
+            else:
+                input_merge = merge(input_model_outs, mode='concat', concat_axis=1, name='input_merge')
 
-            ## construct convolution block4 ##
+            ## construct convolution block ##
             x = Convolution2D(64, 3, 3, activation='relu', border_mode='same', name='block3_conv1')(input_merge)
             x = Convolution2D(64, 3, 3, activation='relu', border_mode='same', name='block3_conv2')(x)
             x = MaxPooling2D((2, 2), strides=(2, 2), name='block3_pool')(x)
@@ -52,16 +47,16 @@ class DQN:
             x = Flatten(name='camera_flatten')(x)
 
             motion_input = Input(shape=motion_shape)
-            # input_model_ins.append(motion_input)
+            input_model_ins.append(motion_input)
             y = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='motion_conv1')(motion_input)
             y = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='motion_conv2')(y)
             y = MaxPooling2D((2, 2), strides=(2, 2), name='motion_pool')(y)
             y = Flatten(name='motion_flatten')(y)
 
-            # merge_xy = merge([x, y], mode='concat', concat_axis=1, name='merge_camera_motion')
+            merge_xy = merge([x, y], mode='concat', concat_axis=1, name='merge_camera_motion')
 
             ## Q-values block ##
-            x = Dense(1024, activation='relu', name='fc1')(x)
+            x = Dense(1024, activation='relu', name='fc1')(merge_xy)
             x = Dropout(0.5, name='dropout1')(x)
             actionQs = Dense(5, activation='softmax', name='actionQs')(x)
 
@@ -83,6 +78,16 @@ class DQN:
         self.memory = ReplayMemory()
         print('[Model] ready', end='\r\n')
 
+    def createInputBlock(self, suffix):
+        input_tensor = Input(shape=self.camera_shape, name='image'+suffix)
+        x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block1_conv1'+suffix)(input_tensor)
+        x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block1_conv2'+suffix)(x)
+        x = MaxPooling2D((2, 2), strides=(2, 2), name='block1_pool'+suffix)(x)
+        x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block2_conv1'+suffix)(x)
+        x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block2_conv2'+suffix)(x)
+        x = MaxPooling2D((2, 2), strides=(2, 2), name='block2_pool'+suffix)(x)
+        return input_tensor, x
+
     def push(self, data):
         data[0] = data[0].transpose((2, 0, 1))
         data[1] = data[1].transpose((2, 0, 1))
@@ -102,8 +107,8 @@ class DQN:
             motions[batch_idx] = batch[2]
             labels[batch_idx][batch[3]] = 1.
 
-        # return self.dqn.train_on_batch([preimgs, nowimgs, motions], labels)
-        return self.dqn.train_on_batch([preimgs, nowimgs], labels)
+        return self.dqn.train_on_batch([preimgs, nowimgs, motions], labels)
+        #return self.dqn.train_on_batch([preimgs, nowimgs], labels)
 
     def predict(self, data):
         data[0] = data[0].transpose((2, 0, 1))
@@ -147,14 +152,19 @@ if __name__ == '__main__':
     print(5)
     """
 
-    model = DQN(pre_training=True, frame=2, motion_shape=(2, 10, 10))
+    model = DQN((3,100,100), motion_shape=(2, 10, 10))
     print(model.dqn.summary())
-    model.push(np.zeros((100, 100, 3)), 1)
-    model.push(np.zeros((100, 100, 3)), 2)
-    model.push(np.zeros((100, 100, 3)), 3)
-    model.push(np.zeros((100, 100, 3)), 4)
+    for weight in model.dqn.optimizer.get_weights():
+        print(weight.shape)
+    model.push([np.zeros((100, 100, 3)), np.zeros((100,100,3)), np.zeros((2,10,10)), 0])
+    model.push([np.zeros((100, 100, 3)), np.zeros((100,100,3)), np.zeros((2,10,10)), 1])
+    model.push([np.zeros((100, 100, 3)), np.zeros((100,100,3)), np.zeros((2,10,10)), 2])
+    model.push([np.zeros((100, 100, 3)), np.zeros((100,100,3)), np.zeros((2,10,10)), 3])
+    model.push([np.zeros((100, 100, 3)), np.zeros((100,100,3)), np.zeros((2,10,10)), 4])
     model.save_memory()
     for i in range(10):
         model.train()
+    for weight in model.dqn.optimizer.get_weights():
+        print(weight.shape)
     model.save_dqn()
 
