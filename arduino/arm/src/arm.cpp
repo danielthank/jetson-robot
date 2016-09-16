@@ -37,7 +37,7 @@ bool parseCommand(char* command, int* returnValues, char returnNumber) {
 		switch (*(command + i)) {
 			case '\0':
 			case ',':
-			if(ch != 0) {
+			if (ch != 0) {
 				returnValues[j++] = sign?-temp:temp;
 				sign = 0;
 				temp = 0;
@@ -52,7 +52,7 @@ bool parseCommand(char* command, int* returnValues, char returnNumber) {
 
 			default:
 			number = *(command + i) - '0';
-			if(number < 0 || number > 9) return false;
+			if (number < 0 || number > 9) return false;
 			temp = temp * 10 + number;
 			ch++;
 		}

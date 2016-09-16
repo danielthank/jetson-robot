@@ -21,44 +21,34 @@ void setup() {
 }
 
 char serialData[32];
-bool parseCommand(char* command, int* returnValues, char returnNumber)
-{
+bool parseCommand(char* command, int* returnValues, char returnNumber) {
     int i = 1, j = 0, number, temp = 0;
     char sign = 0, ch = 0;
-    while(i++){
-        switch(*(command + i)){
+    while (i++) {
+        switch(*(command + i)) {
             case '\0':
             case ',':
-            if(ch != 0){
+            if (ch != 0) {
                 returnValues[j++] = sign?-temp:temp;
                 sign = 0;
                 temp = 0;
                 ch = 0;
             }
-            else{
-                return false;
-            }
+            else return false;
             break;
+
             case '-':
             sign = 1;
             break;
+
             default:
-            // convert string to int
             number = *(command + i) - '0';
-            if(number < 0 || number > 9){
-                return false;
-            }
+            if (number < 0 || number > 9) return false;
             temp = temp * 10 + number;
             ch++;
         }
-        // enough return values have been set
-        if(j == returnNumber){
-            return true;
-        }
-        // end of command reached
-        else if(*(command + i) == '\0'){
-            return false;
-        }
+        if (j == returnNumber) return true;
+        else if(*(command + i) == '\0') return false;
     }
 }
 
