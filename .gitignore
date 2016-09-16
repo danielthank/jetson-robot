@@ -3,4 +3,5 @@
 *.mp4
 *.hdf5
 *.swp
+*.o
 pdf/
