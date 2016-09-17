@@ -17,8 +17,8 @@ class Car:
 
         from .find_motion import FindMotion
         self.motion = FindMotion()
-        from .dqn.model import DQN
-        self.model = DQN(camera_shape=(3, 100, 100), motion_shape=self.motion.GetFeatureShape())
+        from .cnn.model import CNN
+        self.model = CNN(camera_shape=(3, 100, 100), motion_shape=self.motion.GetFeatureShape())
 
     def action(self, idx) :
         funcs = [self.forward, self.backward, self.left, self.right, self.stop]

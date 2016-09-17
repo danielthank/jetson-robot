@@ -2,7 +2,6 @@ from __future__ import print_function
 from keras.models import load_model, Model
 from keras.layers import Input, Dense, Dropout, Activation, Flatten, merge, Convolution2D, MaxPooling2D, Lambda
 from keras.layers import Convolution2D, MaxPooling2D
-from keras.applications.vgg16 import VGG16
 from keras.optimizers import SGD, RMSprop
 from keras.utils import np_utils
 from .memory import ReplayMemory
@@ -11,22 +10,20 @@ import os
 import cv2
 import h5py
 
-DQN_PATH = 'model.h5'
+DQN_PATH = 'model_car.h5'
 
-class DQN:
+class CNN:
     def __init__(self, camera_shape, motion_shape):
         self.batch_size = 4
         self.camera_shape = camera_shape
         self.motion_shape = motion_shape
 
         if not os.path.isfile(DQN_PATH):
-            ## load pre-trained vgg16 network ## 
             # vgg = VGG16(include_top=False, weights='imagenet', input_tensor = Input(shape=(3, 100, 100)))
 
-            ## construct parallel input layers from vgg16 ##
             input_model_ins = []
             input_model_outs = []
-            for frame in xrange(2):
+            for frame in range(2):
                 suffix = '_t' if frame == 0 else '_tm'+str(frame)
                 input_tensor, output_tensor = self.createInputBlock(suffix)
                 input_model_ins.append(input_tensor)
@@ -38,11 +35,11 @@ class DQN:
                 input_merge = merge(input_model_outs, mode='concat', concat_axis=1, name='input_merge')
 
             ## construct convolution block ##
-            x = Convolution2D(64, 3, 3, activation='relu', border_mode='same', name='block3_conv1')(input_merge)
-            x = Convolution2D(64, 3, 3, activation='relu', border_mode='same', name='block3_conv2')(x)
+            x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block3_conv1')(input_merge)
+            x = Convolution2D(32, 3, 3, activation='relu', border_mode='same', name='block3_conv2')(x)
             x = MaxPooling2D((2, 2), strides=(2, 2), name='block3_pool')(x)
-            x = Convolution2D(128, 3, 3, activation='relu', border_mode='same', name='block4_conv1')(x)
-            x = Convolution2D(128, 3, 3, activation='relu', border_mode='same', name='block4_conv2')(x)
+            x = Convolution2D(64, 3, 3, activation='relu', border_mode='same', name='block4_conv1')(x)
+            x = Convolution2D(64, 3, 3, activation='relu', border_mode='same', name='block4_conv2')(x)
             x = MaxPooling2D((2, 2), strides=(2, 2), name='block4_pool')(x)
             x = Flatten(name='camera_flatten')(x)
 
@@ -150,7 +147,6 @@ if __name__ == '__main__':
     print(4)
     model.save_memory()
     print(5)
-    """
 
     model = DQN((3,100,100), motion_shape=(2, 10, 10))
     print(model.dqn.summary())
@@ -167,4 +163,5 @@ if __name__ == '__main__':
     for weight in model.dqn.optimizer.get_weights():
         print(weight.shape)
     model.save_dqn()
+    """
 

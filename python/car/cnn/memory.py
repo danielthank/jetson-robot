@@ -6,7 +6,7 @@ import pickle
 class ReplayMemory:
     def __init__(self):
         self.memory_size = 1000
-        self.filepath = 'car/dqn/memory.pickle'
+        self.filepath = 'memory_car.pickle'
 
         if os.path.isfile(self.filepath):
             self.load()
