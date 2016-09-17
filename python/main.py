@@ -1,4 +1,3 @@
-from __future__ import print_function
 import cv2
 import numpy as np
 import sys
@@ -29,9 +28,9 @@ class Main:
         self.termKey()
         cv2.destroyAllWindows()
         self.car.stop()
-        #self.car.model.save_dqn()
-        #self.car.model.memory.save()
-        #self.video.release()
+        self.car.model.save_dqn()
+        self.car.model.memory.save()
+        self.video.release()
 
     def initKey(self):
         self.old_settings = termios.tcgetattr(sys.stdin)
@@ -83,10 +82,8 @@ IMG_SIZE = (640, 480)
 
 
 with Main(sys.argv) as main:
-    """
     fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
     main.video = cv2.VideoWriter('test.mp4',fourcc,20,IMG_SIZE)
-    """
     nowimg = main.vs.read()
     nowimg = cv2.resize(nowimg, (100, 100))
     start = time()
@@ -99,51 +96,37 @@ with Main(sys.argv) as main:
         if cv2.waitKey(50)  == ord('q'):
             break
         nowimg = cv2.resize(nowimg, (100, 100))
-        # main.video.write(img)
+        main.video.write(nowimg)
         key = main.getKey()
         if key == 'KEY_UP':
             main.car.action(0)
-            """
             motion_feature = main.car.motion.GetFeature(preimg, nowimg)
             main.car.model.push([preimg, nowimg, motion_feature, 0])
-            stdscr.addstr('[Train] ' + str(main.car.model.train()) + '\n')
-            """
+            print('[Train] ' + str(main.car.model.train()))
         elif key == 'KEY_DOWN':
             main.car.action(1)
-            """
             motion_feature = main.car.motion.GetFeature(preimg, nowimg)
             main.car.model.push([preimg, nowimg, motion_feature, 1])
-            stdscr.addstr('[Train] ' + str(main.car.model.train()) + '\n')
-            """
+            print('[Train] ' + str(main.car.model.train()))
         elif key == 'KEY_LEFT':
             main.car.action(2)
-            """
             motion_feature = main.car.motion.GetFeature(preimg, nowimg)
             main.car.model.push([preimg, nowimg, motion_feature, 2])
-            stdscr.addstr('[Train] ' + str(main.car.model.train()) + '\n')
-            """
+            print('[Train] ' + str(main.car.model.train()))
         elif key == 'KEY_RIGHT':
             main.car.action(3)
-            """
             motion_feature = main.car.motion.GetFeature(preimg, nowimg)
             main.car.model.push([preimg, nowimg, motion_feature, 3])
-            stdscr.addstr('[Train] ' + str(main.car.model.train()) + '\n')
-            """
+            print('[Train] ' + str(main.car.model.train()))
         elif key == ' ':
             main.car.action(4)
-            """
             motion_feature = main.car.motion.GetFeature(preimg, nowimg)
             main.car.model.push([preimg, nowimg, motion_feature, 4])
-            stdscr.addstr('[Train] ' + str(main.car.model.train()) + '\n')
-            """
+            print('[Train] ' + str(main.car.model.train()))
         elif key == 'q':
             break
         elif key == None:
             # ir = main.arduino.request('i\n')
-            """
             prob = main.car.model.predict([preimg, nowimg, main.car.motion.GetFeature(preimg, nowimg)])[0]
-            stdscr.addstr('[Predict] ' + str(prob) + '\n')
+            print('[Predict] ' + str(prob))
             main.car.action(np.argmax(prob))
-            """
-            pass
-

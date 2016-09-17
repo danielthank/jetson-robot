@@ -1,9 +1,11 @@
 class Car:
     def __init__(self, arduino):
+        self.arduino = arduino
+
         self.ROTATE_SPEED = 10
         self.BASE_SPEED = 20
         self.MAX_SPEED = 90
-        self.arduino = arduino
+
         self.lastAngle = 0
         self.p = 0.5
         self.i = 0
@@ -12,6 +14,7 @@ class Car:
         self.rSpeed = 0
         self.lSpeed = 0
         self.gamma = 0.5
+
         from .find_motion import FindMotion
         self.motion = FindMotion()
         from .dqn.model import DQN
