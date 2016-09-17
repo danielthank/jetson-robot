@@ -4,4 +4,5 @@
 *.hdf5
 *.swp
 *.o
+*.h5
 pdf/

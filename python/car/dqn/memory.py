@@ -1,11 +1,7 @@
-from __future__ import print_function
 import os
 import random
 import numpy as np
-import h5py
-import cPickle as pickle
-
-from Queue import Queue
+import pickle
 
 class ReplayMemory:
     def __init__(self):

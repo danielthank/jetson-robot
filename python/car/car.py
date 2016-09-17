@@ -1,11 +1,7 @@
-from blacklane import BlackLaneDetector
-from find_motion import FindMotion
-from dqn.model import DQN
-
 class Car:
     def __init__(self, arduino):
         self.ROTATE_SPEED = 10
-        self.BASE_SPEED = 10
+        self.BASE_SPEED = 20
         self.MAX_SPEED = 90
         self.arduino = arduino
         self.lastAngle = 0
@@ -16,8 +12,9 @@ class Car:
         self.rSpeed = 0
         self.lSpeed = 0
         self.gamma = 0.5
-        self.detector = BlackLaneDetector()
+        from .find_motion import FindMotion
         self.motion = FindMotion()
+        from .dqn.model import DQN
         self.model = DQN(camera_shape=(3, 100, 100), motion_shape=self.motion.GetFeatureShape())
 
     def action(self, idx) :
@@ -55,5 +52,5 @@ class Car:
             self.lSpeed = -self.MAX_SPEED
         elif self.lSpeed > self.MAX_SPEED:
             self.lSpeed = self.MAX_SPEED
-        command = 's ' + str(int(self.rSpeed)) + ',' + str(int(self.lSpeed)) + '\n'
-        return self.arduino.request(command)
+        command = 'c ' + str(int(self.rSpeed)) + ',' + str(int(self.lSpeed)) + '\n'
+        return self.arduino.request(bytearray(command, 'ascii'))

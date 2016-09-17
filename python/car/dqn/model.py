@@ -5,7 +5,7 @@ from keras.layers import Convolution2D, MaxPooling2D
 from keras.applications.vgg16 import VGG16
 from keras.optimizers import SGD, RMSprop
 from keras.utils import np_utils
-from memory import ReplayMemory
+from .memory import ReplayMemory
 import numpy as np
 import os
 import cv2
@@ -66,7 +66,7 @@ class DQN:
         else:
             self.dqn = self.load_dqn()
 
-        rms = RMSprop(lr=0.0001, clipnorm=1.)
+        rms = RMSprop(lr=0.00001, clipnorm=1.)
         self.dqn.compile(optimizer=rms, loss='categorical_crossentropy', metrics=['accuracy'])
         self.save_dqn()
 
@@ -99,7 +99,7 @@ class DQN:
         preimgs = np.empty((self.batch_size,) + self.camera_shape)
         nowimgs = np.empty((self.batch_size,) + self.camera_shape)
         motions = np.empty((self.batch_size,) + self.motion_shape)
-        labels = np.empty((self.batch_size, 5))
+        labels = np.zeros((self.batch_size, 5))
 
         for batch_idx, batch in enumerate(data):
             preimgs[batch_idx] = batch[0].astype(np.float32) - 128
@@ -121,8 +121,8 @@ class DQN:
         nowimgs[0] = data[1].astype(np.float32) - 128
         motions[0] = data[2]
 
-        # return self.dqn.predict_on_batch([preimgs, nowimgs, motions])
-        return self.dqn.predict_on_batch([preimgs, nowimgs])
+        return self.dqn.predict_on_batch([preimgs, nowimgs, motions])
+        #return self.dqn.predict_on_batch([preimgs, nowimgs])
 
     def save_dqn(self):
         self.dqn.save(DQN_PATH)

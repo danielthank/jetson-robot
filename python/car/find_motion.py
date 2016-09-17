@@ -4,7 +4,6 @@ import sys
 import timeit
 import itertools
 import math
-from scipy import weave
 import random
 
 class FindMotion:
@@ -13,8 +12,8 @@ class FindMotion:
     MAX_MAG = (WINDOW[0]**2 + WINDOW[1]**2)**0.5
     IMG_SIZE = (100, 100)
     def __init__(self):
-        self.yy = xrange(self.WINDOW[0], self.IMG_SIZE[1]-self.BLOCK[0]-self.WINDOW[0]+1, self.BLOCK[0])
-        self.xx = xrange(self.WINDOW[1], self.IMG_SIZE[0]-self.BLOCK[1]-self.WINDOW[1]+1, self.BLOCK[1])
+        self.yy = range(self.WINDOW[0], self.IMG_SIZE[1]-self.BLOCK[0]-self.WINDOW[0]+1, self.BLOCK[0])
+        self.xx = range(self.WINDOW[1], self.IMG_SIZE[0]-self.BLOCK[1]-self.WINDOW[1]+1, self.BLOCK[1])
         self.feature = np.empty((2, len(self.yy), len(self.xx)))
 
         self.img_t0 = None
@@ -31,8 +30,8 @@ class FindMotion:
         min_cost = np.inf
         min_len = np.inf
         cord = None
-        ref_iter = itertools.product(xrange(0, self.WINDOW[0]*2+1,2),
-                                     xrange(0, self.WINDOW[1]*2+1,2))
+        ref_iter = itertools.product(range(0, self.WINDOW[0]*2+1,2),
+                                     range(0, self.WINDOW[1]*2+1,2))
 
         for y, x in ref_iter:
             Len = (self.WINDOW[0] - y)**2 + (self.WINDOW[1] - x)**2
