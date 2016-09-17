@@ -14,7 +14,7 @@ DQN_PATH = 'model_car.h5'
 
 class CNN:
     def __init__(self, camera_shape, motion_shape):
-        self.batch_size = 4
+        self.batch_size = 64
         self.camera_shape = camera_shape
         self.motion_shape = motion_shape
 

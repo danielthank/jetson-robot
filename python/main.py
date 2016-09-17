@@ -15,15 +15,19 @@ from arm.arm import Arm
 from arduino import Arduino
 
 class Main:
-    IMG_SIZE = (640, 480)
+    IMG_SIZE = (100, 100)
     def __init__(self, argv):
         parser = argparse.ArgumentParser(description='jetson-robot')
         parser.add_argument('-1', action='store_const', dest='level', const='car', default=None)
         parser.add_argument('-2', action='store_const', dest='level', const='arm', default=None)
         parser.add_argument('-s', action='store_true', dest='show', default=False)
+        parser.add_argument('-nod', action='store_true', dest='nod', default=False)
         args = parser.parse_args()
         self.level = args.level
         self.show = args.show
+        if args.nod:
+            null_dev = os.open('/dev/null', os.O_WRONLY)
+            os.dup2(null_dev, 2)
 
         self.arduino = Arduino()
         if self.level == 'car':
@@ -88,20 +92,6 @@ class Main:
         else:
             return None
 
-    def usage(self):
-        print('Usage : BlackLaneDetector <cvp> <source>')
-        print('    c : read data from camera')
-        print('    v : read data from video')
-        print('    p : read data from picture')
-        sys.exit()
-
-def redirect_stderr(self,flag):
-    if flag:
-        null_dev = os.open('/dev/null', os.O_WRONLY)
-        os.dup2(null_dev, 2)
-
-
-
 with Main(sys.argv) as main:
     if main.level == 'car':
         nowimg = main.vs.read()
@@ -121,22 +111,22 @@ with Main(sys.argv) as main:
             main.video.write(nowimg)
             key = main.getKey()
             if key == 'KEY_UP':
-                main.car.action(0)
+                main.car.action(4)
                 motion_feature = main.car.motion.GetFeature(preimg, nowimg)
                 main.car.model.push([preimg, nowimg, motion_feature, 0])
                 print('[Train] ' + str(main.car.model.train()))
             elif key == 'KEY_DOWN':
-                main.car.action(1)
+                main.car.action(4)
                 motion_feature = main.car.motion.GetFeature(preimg, nowimg)
                 main.car.model.push([preimg, nowimg, motion_feature, 1])
                 print('[Train] ' + str(main.car.model.train()))
             elif key == 'KEY_LEFT':
-                main.car.action(2)
+                main.car.action(4)
                 motion_feature = main.car.motion.GetFeature(preimg, nowimg)
                 main.car.model.push([preimg, nowimg, motion_feature, 2])
                 print('[Train] ' + str(main.car.model.train()))
             elif key == 'KEY_RIGHT':
-                main.car.action(3)
+                main.car.action(4)
                 motion_feature = main.car.motion.GetFeature(preimg, nowimg)
                 main.car.model.push([preimg, nowimg, motion_feature, 3])
                 print('[Train] ' + str(main.car.model.train()))

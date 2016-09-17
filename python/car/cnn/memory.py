@@ -5,7 +5,7 @@ import pickle
 
 class ReplayMemory:
     def __init__(self):
-        self.memory_size = 1000
+        self.memory_size = 10000
         self.filepath = 'memory_car.pickle'
 
         if os.path.isfile(self.filepath):
@@ -16,6 +16,7 @@ class ReplayMemory:
         print('[Memory] Ready')
 
     def push(self, data):
+        print('[Memory] ' + str(self.count))
         self.q.append(data)
 
         self.count = max(self.count, self.current + 1)
