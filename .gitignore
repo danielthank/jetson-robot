@@ -5,5 +5,7 @@
 *.swp
 *.o
 *.h5
+*.pickle
+*.avi
 __pycache__
 pdf/
