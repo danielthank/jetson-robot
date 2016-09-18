@@ -10,8 +10,8 @@ class FindMotion:
     WINDOW = (5, 5)       # (h/2, w/2)
     BLOCK = (10, 10)        # (h, w)
     MAX_MAG = (WINDOW[0]**2 + WINDOW[1]**2)**0.5
-    IMG_SIZE = (100, 100)
-    def __init__(self):
+    def __init__(self, camera_shape):
+        self.IMG_SIZE = camera_shape[1:]
         self.yy = range(self.WINDOW[0], self.IMG_SIZE[1]-self.BLOCK[0]-self.WINDOW[0]+1, self.BLOCK[0])
         self.xx = range(self.WINDOW[1], self.IMG_SIZE[0]-self.BLOCK[1]-self.WINDOW[1]+1, self.BLOCK[1])
         self.feature = np.empty((2, len(self.yy), len(self.xx)))
@@ -106,11 +106,9 @@ class FindMotion:
         return self.feature
 
     def GetFeature(self, pre, now):
-        pre = cv2.resize(pre, self.IMG_SIZE)
         pre = cv2.cvtColor(pre, cv2.COLOR_BGR2GRAY)
         pre = cv2.blur(pre, (3, 3))
 
-        now = cv2.resize(now, self.IMG_SIZE)
         now = cv2.cvtColor(now, cv2.COLOR_BGR2GRAY)
         now = cv2.blur(now, (3, 3))
 

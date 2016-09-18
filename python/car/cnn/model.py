@@ -10,15 +10,15 @@ import os
 import cv2
 import h5py
 
-DQN_PATH = 'model_car.h5'
+CNN_PATH = 'model_car.h5'
 
 class CNN:
-    def __init__(self, camera_shape, motion_shape):
-        self.batch_size = 64
+    def __init__(self, camera_shape, motion_shape, batch_size):
+        self.batch_size = batch_size
         self.camera_shape = camera_shape
         self.motion_shape = motion_shape
 
-        if not os.path.isfile(DQN_PATH):
+        if not os.path.isfile(CNN_PATH):
             # vgg = VGG16(include_top=False, weights='imagenet', input_tensor = Input(shape=(3, 100, 100)))
 
             input_model_ins = []
@@ -57,17 +57,17 @@ class CNN:
             x = Dropout(0.5, name='dropout1')(x)
             actionQs = Dense(5, activation='softmax', name='actionQs')(x)
 
-            ## DQN model ##
-            dqn = Model(input=input_model_ins, output=[actionQs])
-            self.dqn = dqn
+            ## CNN model ##
+            cnn = Model(input=input_model_ins, output=[actionQs])
+            self.cnn = cnn
         else:
-            self.dqn = self.load_dqn()
+            self.cnn = self.load_cnn()
 
         rms = RMSprop(lr=0.00001, clipnorm=1.)
-        self.dqn.compile(optimizer=rms, loss='categorical_crossentropy', metrics=['accuracy'])
-        self.save_dqn()
+        self.cnn.compile(optimizer=rms, loss='categorical_crossentropy', metrics=['accuracy'])
+        self.save_cnn()
 
-        self.training_model = self.dqn
+        self.training_model = self.cnn
         self.training_model._make_train_function()
         self.training_model._make_predict_function()
         # print(self.training_model.summary())
@@ -104,8 +104,7 @@ class CNN:
             motions[batch_idx] = batch[2]
             labels[batch_idx][batch[3]] = 1.
 
-        return self.dqn.train_on_batch([preimgs, nowimgs, motions], labels)
-        #return self.dqn.train_on_batch([preimgs, nowimgs], labels)
+        return self.cnn.train_on_batch([preimgs, nowimgs, motions], labels)
 
     def predict(self, data):
         data[0] = data[0].transpose((2, 0, 1))
@@ -118,22 +117,21 @@ class CNN:
         nowimgs[0] = data[1].astype(np.float32) - 128
         motions[0] = data[2]
 
-        return self.dqn.predict_on_batch([preimgs, nowimgs, motions])
-        #return self.dqn.predict_on_batch([preimgs, nowimgs])
+        return self.cnn.predict_on_batch([preimgs, nowimgs, motions])
 
-    def save_dqn(self):
-        self.dqn.save(DQN_PATH)
+    def save_cnn(self):
+        self.cnn.save(CNN_PATH)
 
-    def load_dqn(self):
-        return load_model(DQN_PATH)
+    def load_cnn(self):
+        return load_model(CNN_PATH)
 
     def save_memory(self):
         self.memory.save()
 
 if __name__ == '__main__':
     """
-    model = DQN(pre_training=True, frame=2)
-    #model.dqn.summary()
+    model = CNN(pre_training=True, frame=2)
+    #model.cnn.summary()
     #model.training_model.summary()
     #print(model.training_model.trainable_weights)
     print(1)
@@ -143,14 +141,14 @@ if __name__ == '__main__':
     print(2)
     model.train()
     print(3)
-    model.save_dqn()
+    model.save_cnn()
     print(4)
     model.save_memory()
     print(5)
 
-    model = DQN((3,100,100), motion_shape=(2, 10, 10))
-    print(model.dqn.summary())
-    for weight in model.dqn.optimizer.get_weights():
+    model = CNN((3,100,100), motion_shape=(2, 10, 10))
+    print(model.cnn.summary())
+    for weight in model.cnn.optimizer.get_weights():
         print(weight.shape)
     model.push([np.zeros((100, 100, 3)), np.zeros((100,100,3)), np.zeros((2,10,10)), 0])
     model.push([np.zeros((100, 100, 3)), np.zeros((100,100,3)), np.zeros((2,10,10)), 1])
@@ -160,8 +158,8 @@ if __name__ == '__main__':
     model.save_memory()
     for i in range(10):
         model.train()
-    for weight in model.dqn.optimizer.get_weights():
+    for weight in model.cnn.optimizer.get_weights():
         print(weight.shape)
-    model.save_dqn()
+    model.save_cnn()
     """
 

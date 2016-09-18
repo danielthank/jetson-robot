@@ -8,11 +8,6 @@ import select
 import argparse
 
 from time import sleep, time
-from imutils.video import VideoStream
-
-from car.car import Car
-from arm.arm import Arm
-from arduino import Arduino
 
 class Main:
     IMG_SIZE = (100, 100)
@@ -20,6 +15,7 @@ class Main:
         parser = argparse.ArgumentParser(description='jetson-robot')
         parser.add_argument('-1', action='store_const', dest='level', const='car', default=None)
         parser.add_argument('-2', action='store_const', dest='level', const='arm', default=None)
+        parser.add_argument('-t', action='store_const', dest='level', const='train', default=None)
         parser.add_argument('-s', action='store_true', dest='show', default=False)
         parser.add_argument('-nod', action='store_true', dest='nod', default=False)
         args = parser.parse_args()
@@ -29,18 +25,29 @@ class Main:
             null_dev = os.open('/dev/null', os.O_WRONLY)
             os.dup2(null_dev, 2)
 
-        self.arduino = Arduino()
-        if self.level == 'car':
-            self.car = Car(self.arduino)
-        elif self.level == 'arm':
-            self.arm = Arm(self.arduino)
         self.initKey()
         self.poller = select.epoll()
         self.poller.register(sys.stdin.fileno(), select.EPOLLIN)
 
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        self.video = cv2.VideoWriter(self.level +'.avi', fourcc, 20, self.IMG_SIZE)
-        self.vs = VideoStream(src=0).start()
+        if self.level == 'car':
+            from arduino import Arduino
+            self.arduino = Arduino()
+
+            from car.car import Car
+            self.car = Car(self.arduino)
+
+            fourcc = cv2.VideoWriter_fourcc(*'XVID')
+            self.video = cv2.VideoWriter(self.level +'.avi', fourcc, 20, self.IMG_SIZE)
+
+            from imutils.video import VideoStream
+            self.vs = VideoStream(src=0).start()
+
+        elif self.level == 'arm':
+            from arduino import Arduino
+            self.arduino = Arduino()
+
+            from arm.arm import Arm
+            self.arm = Arm(self.arduino)
 
         print('[Start]')
 
@@ -48,23 +55,23 @@ class Main:
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.vs.stop()
-        self.termKey()
         cv2.destroyAllWindows()
+        self.termKey()
         if self.level == 'car':
             self.car.stop()
-            self.car.model.save_dqn()
+            self.car.model.save_cnn()
             self.car.model.memory.save()
+            self.vs.stop()
+            self.video.release()
         elif self.level == 'arm':
             pass
-        self.video.release()
 
     def initKey(self):
         self.old_settings = termios.tcgetattr(sys.stdin)
         new_settings = termios.tcgetattr(sys.stdin)
-        new_settings[3] = new_settings[3] & ~(termios.ECHO | termios.ICANON) # lflags
-        new_settings[6][termios.VMIN] = 0  # cc
-        new_settings[6][termios.VTIME] = 0 # cc
+        new_settings[3] = new_settings[3] & ~(termios.ECHO | termios.ICANON) 
+        new_settings[6][termios.VMIN] = 0
+        new_settings[6][termios.VTIME] = 0
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, new_settings)
 
     def termKey(self):
@@ -111,36 +118,48 @@ with Main(sys.argv) as main:
             main.video.write(nowimg)
             key = main.getKey()
             if key == 'KEY_UP':
-                main.car.action(4)
+                main.car.setAction(0)
                 motion_feature = main.car.motion.GetFeature(preimg, nowimg)
                 main.car.model.push([preimg, nowimg, motion_feature, 0])
-                print('[Train] ' + str(main.car.model.train()))
+                # print('[Train] ' + str(main.car.model.train()))
             elif key == 'KEY_DOWN':
-                main.car.action(4)
+                main.car.setAction(1)
                 motion_feature = main.car.motion.GetFeature(preimg, nowimg)
                 main.car.model.push([preimg, nowimg, motion_feature, 1])
-                print('[Train] ' + str(main.car.model.train()))
+                # print('[Train] ' + str(main.car.model.train()))
             elif key == 'KEY_LEFT':
-                main.car.action(4)
+                main.car.setAction(2)
                 motion_feature = main.car.motion.GetFeature(preimg, nowimg)
                 main.car.model.push([preimg, nowimg, motion_feature, 2])
-                print('[Train] ' + str(main.car.model.train()))
+                # print('[Train] ' + str(main.car.model.train()))
             elif key == 'KEY_RIGHT':
-                main.car.action(4)
+                main.car.setAction(3)
                 motion_feature = main.car.motion.GetFeature(preimg, nowimg)
                 main.car.model.push([preimg, nowimg, motion_feature, 3])
-                print('[Train] ' + str(main.car.model.train()))
+                # print('[Train] ' + str(main.car.model.train()))
             elif key == ' ':
-                main.car.action(4)
+                main.car.setAction(4)
                 motion_feature = main.car.motion.GetFeature(preimg, nowimg)
                 main.car.model.push([preimg, nowimg, motion_feature, 4])
-                print('[Train] ' + str(main.car.model.train()))
+                # print('[Train] ' + str(main.car.model.train()))
             elif key == 'q':
                 break
             elif key == None:
                 # ir = main.arduino.request('i\n')
                 prob = main.car.model.predict([preimg, nowimg, main.car.motion.GetFeature(preimg, nowimg)])[0]
                 print('[Predict] ' + str(prob))
-                main.car.action(np.argmax(prob))
+                # action = np.argmax(prob)
+                main.car.setSmooth(prob)
     elif main.level == 'arm':
         print('arm')
+    elif main.level == 'train':
+        from car.find_motion import FindMotion
+        motion = FindMotion(camera_shape=(3,) + main.IMG_SIZE)
+        from car.cnn.model import CNN
+        model = CNN(camera_shape=(3,) + main.IMG_SIZE, motion_shape=motion.GetFeatureShape(), batch_size=64)
+        while True:
+            key = main.getKey()
+            if key == 'q':
+                model.save_cnn()
+                break
+            print('[Train] ' + str(model.train()))

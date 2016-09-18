@@ -13,7 +13,7 @@ class ReplayMemory:
         else:
             self.q = []
             self.current, self.count = 0, 0
-        print('[Memory] Ready')
+        print('[Memory] Ready ' + str(self.count))
 
     def push(self, data):
         print('[Memory] ' + str(self.count))

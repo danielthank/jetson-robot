@@ -1,59 +1,37 @@
+import numpy as np
+
 class Car:
     def __init__(self, arduino):
         self.arduino = arduino
+        self.speeds = np.array([[50, 50], [-50, -50], [50, -50], [-50, 50], [-25, -25]])
 
-        self.ROTATE_SPEED = 10
-        self.BASE_SPEED = 20
         self.MAX_SPEED = 90
 
-        self.lastAngle = 0
-        self.p = 0.5
-        self.i = 0
-        self.d = 0
-        self.accum = 0
-        self.rSpeed = 0
-        self.lSpeed = 0
-        self.gamma = 0.5
-
         from .find_motion import FindMotion
-        self.motion = FindMotion()
+        self.motion = FindMotion(camera_shape=(3, 100, 100))
         from .cnn.model import CNN
-        self.model = CNN(camera_shape=(3, 100, 100), motion_shape=self.motion.GetFeatureShape())
+        self.model = CNN(camera_shape=(3, 100, 100), motion_shape=self.motion.GetFeatureShape(), batch_size=64)
 
-    def action(self, idx) :
-        funcs = [self.forward, self.backward, self.left, self.right, self.stop]
-        if idx < len(funcs):
-            return funcs[idx]()
-        return 'fail'
+    def setAction(self, idx) :
+        speed = self.speeds[idx]
+        return self.toArduino(*speed)
 
-    def setSpeed(self, r, l):
-        self.rSpeed = r
-        self.lSpeed = l
-        return self.toArduino()
-
-    def forward(self):
-        return self.setSpeed(self.BASE_SPEED, self.BASE_SPEED)
-
-    def backward(self):
-        return self.setSpeed(-self.BASE_SPEED, -self.BASE_SPEED)
-
-    def left(self):
-        return self.setSpeed(self.BASE_SPEED, -self.BASE_SPEED)
-
-    def right(self):
-        return self.setSpeed(-self.BASE_SPEED, self.BASE_SPEED)
+    def setSmooth(self, weights):
+        speed = np.dot(weights, self.speeds)
+        return self.toArduino(*speed)
 
     def stop(self):
-        return self.setSpeed(0, 0)
+        return self.toArduino(0, 0)
 
-    def toArduino(self):
-        if self.rSpeed < -self.MAX_SPEED:
-            self.rSpeed = -self.MAX_SPEED
-        elif self.rSpeed > self.MAX_SPEED:
-            self.rSpeed = self.MAX_SPEED
-        if self.lSpeed < -self.MAX_SPEED:
-            self.lSpeed = -self.MAX_SPEED
-        elif self.lSpeed > self.MAX_SPEED:
-            self.lSpeed = self.MAX_SPEED
-        command = 'c ' + str(int(self.rSpeed)) + ',' + str(int(self.lSpeed)) + '\n'
+    def toArduino(self, rSpeed, lSpeed):
+        print(rSpeed, lSpeed)
+        if rSpeed < -self.MAX_SPEED:
+            rSpeed = -self.MAX_SPEED
+        elif rSpeed > self.MAX_SPEED:
+            rSpeed = self.MAX_SPEED
+        if lSpeed < -self.MAX_SPEED:
+            lSpeed = -self.MAX_SPEED
+        elif lSpeed > self.MAX_SPEED:
+            lSpeed = self.MAX_SPEED
+        command = 'c ' + str(int(rSpeed)) + ',' + str(int(lSpeed)) + '\n'
         return self.arduino.request(bytearray(command, 'ascii'))
