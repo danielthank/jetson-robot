@@ -7,15 +7,19 @@ class Arm():
         self.l1 = 850
         self.l2 = 770
 
-    def write(self, degrees):
-        command = 'a,'
-        for i, degree in enumerate(self.now):
+    def degree2Arduino(self, degrees):
+        command = 'a '
+        for i, degree in enumerate(degrees):
             if degree < 0:
                 degree = 0
             elif degree > 180:
                 degree = 180
             command += str(int(degree)) + ','
         command = command[:-1] + '\n'
+        return self.arduino.request(bytearray(command, 'ascii'))
+
+    def laser2Arduino(self, dev, flag):
+        command = 'l ' + str(int(dev)) + ',' + str(int(flag)) + '\n'
         return self.arduino.request(bytearray(command, 'ascii'))
 
     def rad2deg(self, rad):
@@ -33,4 +37,3 @@ class Arm():
         degrees[3] = 90 - degrees[1] - degrees[2]
         if degrees != self.now:
             self.now = degrees
-            self.event.set()
