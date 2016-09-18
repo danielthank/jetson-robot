@@ -37,3 +37,13 @@ class Arm():
         degrees[3] = 90 - degrees[1] - degrees[2]
         if degrees != self.now:
             self.now = degrees
+    def gotoLH(self,l,h) :
+        c = l**2+h**2
+        degrees = [90] *6
+        degrees[1] = self.rad2deg(np.arctan2(h,l)+np.arccos((l1**2+c-l2**2)/(l2*np.sqrt(c))))
+        degrees[2] = self.rad2deg(np.arccos((l1**2+l2**2-c)/(l1*l2)))
+        degrees[3] = 360-degrees[1]-degrees[2]
+        degrees[5] = 45
+        return self.degree2arduino(degrees)
+
+
