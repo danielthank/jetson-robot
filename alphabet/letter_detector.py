@@ -3,7 +3,7 @@ import numpy as np
 import sys
 import time
 from matplotlib import pyplot as plt
-from classify import classify_img
+#from classify import classify_img
 
 def HOGofCells(HOGfeatures, img_size, block_size, cell_size, stride, nbins):
     nblock_y = (img_size[1] - block_size[1]) / stride[1] + 1
@@ -157,8 +157,11 @@ def CalcExts(cnts, filter=False, th=2.0):
         extBot = tuple(c[c[:, :, 1].argmax()][0])
         #print extLeft, extRight, extTop, extBot
         exts = {'left':extLeft, 'right':extRight, 'top':extTop, 'bottom':extBot}
-        width = extRight[0] - extLeft[0]
-        height = extBot[1] - extTop[1]
+        minrect = cv2.minAreaRect(c)
+        '''width = extRight[0] - extLeft[0]
+        height = extBot[1] - extTop[1]'''
+        width = minrect[1][0]
+        height = minrect[1][1]
         #print width, height
         if filter:
             if float(height)/width < th and float(height)/width > 1/th:
@@ -311,10 +314,16 @@ def FindLetter(img, show_result=False):
                                  edge_th_max=200,
                                  show=show_result,
                                  name='1st')
+    if len(cnts_convex) == 0:
+        print "no letters"
+        return None, None, None, None, None, None
     cnts_convex, _ = AreaFilter(cnts_convex,
                                 area_th_min=0.001,
                                 area_th_max=0.2)
     print "number of cnts_convex:", len(cnts_convex), '\n'
+    if len(cnts_convex) == 0:
+        print "no letters"
+        return None, None, None, None, None, None
     img_convex = img.copy()
     cv2.drawContours(img_convex, cnts_convex, -1, (255, 255, 255), 1)
 
@@ -328,6 +337,9 @@ def FindLetter(img, show_result=False):
                                     area_th_min=0.001,
                                     area_th_max=0.2)
     print "number of cnts_convex_2nd:", len(cnts_convex_2nd)
+    if len(cnts_convex_2nd) == 0:
+        print "no letters"
+        return None, None, None, None, None, None
     cnts_filter_2nd, cnts_exts_2nd = CalcExts(cnts_convex_2nd, filter=True, th=5.0)
     img_convex_2nd = img.copy()
     print "after aspect filtered:", len(cnts_filter_2nd), '\n'
@@ -335,8 +347,11 @@ def FindLetter(img, show_result=False):
 
     img_merge = img.copy()
     cnts_merge, cnts_exts_merge = MergeOverlap(cnts_filter_2nd, cnts_exts_2nd)
-    cnts_merge_f, cnts_merge_f_exts = CalcExts(cnts_merge, filter=True, th=5.0)
+    cnts_merge_f, cnts_merge_f_exts = CalcExts(cnts_merge, filter=True, th=3.0)
     print "after aspect filtered:", len(cnts_merge_f)
+    if len(cnts_merge_f) == 0:
+        print "no letters"
+        return None, None, None, None, None, None
 
     cnts_merge_f, cnts_merge_f_exts = AreaFilter(cnts_merge_f, cnts_merge_f_exts,
                                                  area_th_min=0.4,
@@ -418,7 +433,7 @@ def FindLetter(img, show_result=False):
                                          0, 0)
         cnts_fit[-1] = TranslateContour(cnts_fit[-1], -x_start, -y_start)
 
-        ## calc hue histogram ##
+        '''## calc hue histogram ##
         mask = np.zeros(img_crops[-1].shape[:2], np.uint8)
         cv2.drawContours(mask, [cnts_fit[-1]], -1, 255, -1)
         img_crop_blur = cv2.GaussianBlur(img_crops[-1],(3,3), 0)
@@ -462,10 +477,10 @@ def FindLetter(img, show_result=False):
 
         ltr_mask_comb = np.bitwise_and(ltr_mask_comb, ltr_mask_flooded)
         ltr_mask_comb = np.array(ltr_mask_comb, dtype=np.int)
-        '''if False:#len(peaks) > 1:
+        """if False:#len(peaks) > 1:
             mask2 = np.bitwise_and((img_mul >= peaks[1][0] - 0), (img_mul <= peaks[1][0] + 0))
             mask2 = np.array(mask2, dtype=np.int)
-            mask1 = mask1+mask2'''
+            mask1 = mask1+mask2"""
         foreground = np.array([0, 255], dtype=np.uint8) ## letter:white(255), background:black(0)
         img_black_2 = foreground[ltr_mask2]
         img_black_1 = foreground[ltr_mask1]
@@ -507,7 +522,7 @@ def FindLetter(img, show_result=False):
             cv2.imshow(img_name+'letter_comb'+str(num), img_black_comb)
         #cv2.imwrite('./letters/'+img_name+'letter_hue'+str(num)+'.jpg', img_black_2)
         #cv2.imwrite('./letters/'+img_name+'letter_mix'+str(num)+'.jpg', img_black_1)
-        cv2.imwrite('./letters/'+img_name+'letter_comb'+str(num)+'.jpg', img_black_comb)
+        #cv2.imwrite('./letters/'+img_name+'letter_comb'+str(num)+'.jpg', img_black_comb)
         num += 1
         ## cnts_merge_f loop end ##
     if show_result:
@@ -515,16 +530,21 @@ def FindLetter(img, show_result=False):
         cv2.imshow('image_convex_2nd', img_convex_2nd)
         cv2.imshow('image_merge', img_merge)
         cv2.imshow('image_minbox', img_minbox)
-    cv2.imwrite('result.jpg', img_minbox)
+    cv2.imwrite('result.jpg', img_minbox)'''
 
-    return img_letters, cnts_merge_f, cnts_fit, cnts_minRect_orig, cnts_minRect, is_blocks
+    #return img_letters, cnts_merge_f, cnts_fit, cnts_minRect_orig, cnts_minRect, is_blocks
+    return img_crops, cnts_merge_f, cnts_fit, cnts_minRect_orig, cnts_minRect, None
 
 
 
 if __name__ == '__main__':
-    img_name = 'stop_sign5'
+    save = False
+    save_folder = './letters/letter_Q/'
+    letter_type = 'Q'
+    num = 757
+    #img_name = 'stop_sign5'
+    vc = cv2.VideoCapture(0)
     while True:
-        vc = cv2.VideoCapture(0)
         ret, back = vc.read()
         # img = cv2.imread('./pictures/'+img_name+'.jpg')
         # back = cv2.imread('test_data/board1.jpg')
@@ -546,23 +566,38 @@ if __name__ == '__main__':
         #output_img = img.copy()
         #output_img[np.where(mask==0)] = 0'''
         img_letters, cnts_merge_f, cnts_fit, cnts_minRect_orig, cnts_minRect, is_blocks = FindLetter(back, show_result=False)
-        for rect in cnts_minRect_orig:
-            box = cv2.boxPoints(rect)
-            box = np.int0(box)
-            cv2.drawContours(back ,[box], 0, (0,0,255), 2)
-        for i, img in enumerate(img_letters):
-            if is_blocks[i]:
-                cv2.putText(back, chr(classify_img(img) + ord('A')), tuple(np.asarray(cnts_minRect_orig[i][0], dtype='int')), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), thickness=4)
-            else:
-                cv2.putText(back, chr(classify_img(img) + ord('A')), tuple(np.asarray(cnts_minRect_orig[i][0], dtype='int')), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), thickness=4)
+        if not cnts_merge_f == None:
+            for i, rect in enumerate(cnts_minRect_orig):
+                box = cv2.boxPoints(rect)
+                box = np.int0(box)
+                cv2.drawContours(back ,[box], 0, (0,0,255), 2)
+                if save:
+                    cv2.imwrite(save_folder+letter_type+str(num)+'.jpg', img_letters[i])
+                    num += 1
+            '''for i, img in enumerate(img_letters):
+                if is_blocks[i]:
+                    cv2.putText(back, chr(classify_img(img) + ord('A')), tuple(np.asarray(cnts_minRect_orig[i][0], dtype='int')), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), thickness=4)
+                else:
+                    cv2.putText(back, chr(classify_img(img) + ord('A')), tuple(np.asarray(cnts_minRect_orig[i][0], dtype='int')), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), thickness=4)'''
 
+
+        cv2.putText(back, ("save" if save else "stop"), (5, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), thickness=2)
         cv2.imshow('img', back)
-        cv2.waitKey(30)
+        key = cv2.waitKey(30) & 0xFF
+        if key == ord('q'):
+            break
+        elif key == 32:
+            save = not save
 
+        '''if num % 500 == 0:
+            vc.release()
+            vc = cv2.VideoCapture(0)
+            #cv2.destroyAllWindows()'''
 
         """
         print '\nTotal crop letters:', len(img_letters)
         print 'Total Time elapsed: ' + '{:.6f}'.format((time.time() - start)) + ' secs'
         """
         #cv2.imshow('image_hog', img_hog)
+    vc.release()
     cv2.destroyAllWindows()
