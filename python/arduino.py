@@ -1,10 +1,7 @@
-from __future__ import print_function
-# from threading import Thread
-# from Queue import Queue
-from time import sleep
 import serial
-import os
 import numpy as np
+
+from time import sleep
 
 class Arduino():
     def __init__(self):
@@ -33,7 +30,7 @@ class Arduino():
     def request(self, command):
         self.write(command)
         ret = self.readline()
-        print('[Arduino] ' +  command[:-1] + ' ' + ret[:-1])
+        print('[Arduino] ' +  command.decode('ascii')[:-1] + ' ' + ret.decode('ascii')[:-1])
         return ret
 
     def terminate(self):

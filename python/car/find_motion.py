@@ -4,17 +4,16 @@ import sys
 import timeit
 import itertools
 import math
-from scipy import weave
 import random
 
 class FindMotion:
     WINDOW = (5, 5)       # (h/2, w/2)
     BLOCK = (10, 10)        # (h, w)
     MAX_MAG = (WINDOW[0]**2 + WINDOW[1]**2)**0.5
-    IMG_SIZE = (100, 100)
-    def __init__(self):
-        self.yy = xrange(self.WINDOW[0], self.IMG_SIZE[1]-self.BLOCK[0]-self.WINDOW[0]+1, self.BLOCK[0])
-        self.xx = xrange(self.WINDOW[1], self.IMG_SIZE[0]-self.BLOCK[1]-self.WINDOW[1]+1, self.BLOCK[1])
+    def __init__(self, camera_shape):
+        self.IMG_SIZE = camera_shape[1:]
+        self.yy = range(self.WINDOW[0], self.IMG_SIZE[1]-self.BLOCK[0]-self.WINDOW[0]+1, self.BLOCK[0])
+        self.xx = range(self.WINDOW[1], self.IMG_SIZE[0]-self.BLOCK[1]-self.WINDOW[1]+1, self.BLOCK[1])
         self.feature = np.empty((2, len(self.yy), len(self.xx)))
 
         self.img_t0 = None
@@ -31,8 +30,8 @@ class FindMotion:
         min_cost = np.inf
         min_len = np.inf
         cord = None
-        ref_iter = itertools.product(xrange(0, self.WINDOW[0]*2+1,2),
-                                     xrange(0, self.WINDOW[1]*2+1,2))
+        ref_iter = itertools.product(range(0, self.WINDOW[0]*2+1,2),
+                                     range(0, self.WINDOW[1]*2+1,2))
 
         for y, x in ref_iter:
             Len = (self.WINDOW[0] - y)**2 + (self.WINDOW[1] - x)**2
@@ -88,8 +87,8 @@ class FindMotion:
 
         return min_cost,cord
 
-    def GetFeatureShape():
-        self.feature.shape
+    def GetFeatureShape(self):
+        return self.feature.shape
 
     def BlockMatching(self):
         block_iter = itertools.product(),
@@ -107,12 +106,9 @@ class FindMotion:
         return self.feature
 
     def GetFeature(self, pre, now):
-        print pre
-        pre = cv2.resize(pre, self.IMG_SIZE)
         pre = cv2.cvtColor(pre, cv2.COLOR_BGR2GRAY)
         pre = cv2.blur(pre, (3, 3))
 
-        now = cv2.resize(now, self.IMG_SIZE)
         now = cv2.cvtColor(now, cv2.COLOR_BGR2GRAY)
         now = cv2.blur(now, (3, 3))
 
